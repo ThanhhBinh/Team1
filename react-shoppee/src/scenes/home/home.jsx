@@ -2,7 +2,6 @@ import React from "react";
 import HomeProduct from "./homeProduct";
 import HomeProductNew from "./homeProductNew";
 import Slider from "./slider";
-import HomeProgram from "./homeProgram";
 import HomeCategory from "./homeCategory";
 import Flashsale from "./flashsale";
 export default function Home() {
@@ -10,7 +9,6 @@ export default function Home() {
         <main className="main_content">
             <section className="slider container">
                 <Slider />
-                <HomeProgram />
             </section>
             <div className="main-contain-home">
                 <div className="container">

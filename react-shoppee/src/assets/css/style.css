@@ -16019,3 +16019,25 @@ h3.o13Lc4.hERTPn {
     color: #4080ee;
 }
 /* kết thúc Confirmation*/
+
+.shopee-search-result-header {
+    color: #555;
+    display: flex;
+    flex-direction: row;
+    font-size: 16px;
+    font-weight: 400;
+    margin: 0 0 24px;
+}
+.shopee-search-result-header__placeholder,
+.shopee-search-result-header__text {
+    padding: 3px 0;
+}
+.shopee-search-result-header__text-highlight {
+    color: #ee4d2d;
+}
+.shopee-search-result-header__text-emphasize,
+.shopee-search-result-header__text-highlight {
+    font-weight: 700;
+    -webkit-text-decoration: none;
+    text-decoration: none;
+}

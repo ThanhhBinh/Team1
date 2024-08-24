@@ -9,28 +9,30 @@ export const cartSlice = createSlice({
     },
     reducers: {
         addToCart: (state, action) => {
-            const { item, quantity } = action.payload;
-
-            // Đảm bảo state.items là mảng
+            const { item, quantity, user_id } = action.payload;
             if (!Array.isArray(state.items)) {
-                state.items = []; // Khởi tạo lại nếu không phải mảng
+                state.items = []; // Initialize as an array if not already
             }
 
             const existingItem = state.items.find(
-                (i) => i.product_id === item.product_id
+                (i) => i.product_id === item.product_id && i.user_id === user_id
             );
 
             if (existingItem) {
-                // Nếu sản phẩm đã có trong giỏ hàng, cập nhật số lượng
                 state.items = state.items.map((i) => {
-                    if (i.product_id === item.product_id) {
-                        return { ...i, count: i.count + quantity }; // Tăng số lượng của sản phẩm
+                    if (
+                        i.product_id === item.product_id &&
+                        i.user_id === user_id
+                    ) {
+                        return { ...i, count: i.count + quantity }; // Increase quantity
                     }
                     return i;
                 });
             } else {
-                // Nếu sản phẩm chưa có trong giỏ hàng, thêm mới
-                state.items = [...state.items, { ...item, count: quantity }];
+                state.items = [
+                    ...state.items,
+                    { ...item, count: quantity, user_id },
+                ];
             }
 
             localStorage.setItem(
@@ -40,10 +42,12 @@ export const cartSlice = createSlice({
         },
 
         removeFromCart: (state, action) => {
-            const { product_id } = action.payload;
+            const { product_id, user_id } = action.payload;
             state.items = state.items.filter(
-                (item) => item.product_id !== product_id
+                (item) =>
+                    item.product_id !== product_id || item.user_id !== user_id
             );
+
             localStorage.setItem(
                 "cart",
                 JSON.stringify({ items: state.items })
@@ -51,10 +55,13 @@ export const cartSlice = createSlice({
         },
 
         increaseCount: (state, action) => {
-            const { product_id } = action.payload;
+            const { product_id, user_id } = action.payload;
             state.items = state.items.map((item) => {
-                if (item.product_id === product_id) {
-                    return { ...item, count: item.count + 1 }; // Tăng số lượng
+                if (
+                    item.product_id === product_id &&
+                    item.user_id === user_id
+                ) {
+                    return { ...item, count: item.count + 1 }; // Increase quantity
                 }
                 return item;
             });
@@ -65,10 +72,14 @@ export const cartSlice = createSlice({
         },
 
         decreaseCount: (state, action) => {
-            const { product_id } = action.payload;
+            const { product_id, user_id } = action.payload;
             state.items = state.items.map((item) => {
-                if (item.product_id === product_id && item.count > 1) {
-                    return { ...item, count: item.count - 1 }; // Giảm số lượng
+                if (
+                    item.product_id === product_id &&
+                    item.user_id === user_id &&
+                    item.count > 1
+                ) {
+                    return { ...item, count: item.count - 1 }; // Decrease quantity
                 }
                 return item;
             });
@@ -79,10 +90,13 @@ export const cartSlice = createSlice({
         },
 
         updateCount: (state, action) => {
-            const { product_id, count } = action.payload;
+            const { product_id, count, user_id } = action.payload;
             state.items = state.items.map((item) => {
-                if (item.product_id === product_id) {
-                    return { ...item, count: count }; // Cập nhật số lượng
+                if (
+                    item.product_id === product_id &&
+                    item.user_id === user_id
+                ) {
+                    return { ...item, count: count }; // Update quantity
                 }
                 return item;
             });

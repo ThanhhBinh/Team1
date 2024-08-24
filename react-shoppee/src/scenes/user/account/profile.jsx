@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 
 export default function Purchase() {
     const [selectedOption, setSelectedOption] = useState(null);
-
+    const user = useSelector((state) => state.user.current);
+    console.log(user);
     const handleOptionChange = (value) => {
         setSelectedOption(value);
     };
@@ -40,7 +42,7 @@ export default function Purchase() {
                                 </a>
                                 <div className="profile-info">
                                     <div className="profile-username">
-                                        nguyentruonggiang815
+                                        {user.username}
                                     </div>
                                     <div>
                                         <a
@@ -431,7 +433,9 @@ export default function Purchase() {
                                                                 <td className="input-column-">
                                                                     <div className="username-wrapper-">
                                                                         <div className="username-">
-                                                                            truong_giang.01
+                                                                            {
+                                                                                user.username
+                                                                            }
                                                                         </div>
                                                                         <button className="edit-btn-" />
                                                                     </div>
@@ -449,7 +453,9 @@ export default function Purchase() {
                                                                             type="text"
                                                                             placeholder=""
                                                                             className="name-input"
-                                                                            defaultValue=""
+                                                                            defaultValue={
+                                                                                user.username
+                                                                            }
                                                                         />
                                                                     </div>
                                                                 </td>
@@ -463,7 +469,9 @@ export default function Purchase() {
                                                                 <td className="input-column-">
                                                                     <div className="email-wrapper-">
                                                                         <div className="email-">
-                                                                            ng*************@gmail.com
+                                                                            {
+                                                                                user.email
+                                                                            }
                                                                         </div>
                                                                         <button className="edit-btn-">
                                                                             Thay
@@ -482,7 +490,9 @@ export default function Purchase() {
                                                                 <td className="input-column-">
                                                                     <div className="phone-wrapper-">
                                                                         <div className="phone-">
-                                                                            *********06
+                                                                            {
+                                                                                user.phone
+                                                                            }
                                                                         </div>
                                                                         <button className="edit-btn-">
                                                                             Thay

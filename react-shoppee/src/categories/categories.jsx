@@ -24,6 +24,8 @@ const Categories = () => {
     const [sortType, setSortType] = useState("price");
     const [priceRanges, setPriceRanges] = useState([]);
     const [ratings, setRatings] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [productsPerPage, setProductsPerPage] = useState(12); // Hiển thị 12 sản phẩm mỗi trang
 
     useEffect(() => {
         const fetchBanners = async () => {
@@ -99,9 +101,10 @@ const Categories = () => {
 
         // Lọc theo nhiều đánh giá
         if (ratings.length > 0) {
-            filtered = filtered.filter((product) =>
-                ratings.includes(product.rating)
-            );
+            filtered = filtered.filter((product) => {
+                const roundedProductRating = Math.round(product.rating);
+                return ratings.includes(roundedProductRating);
+            });
         }
 
         // Sắp xếp sản phẩm
@@ -126,6 +129,10 @@ const Categories = () => {
         setFilteredProducts(filtered);
     }, [sortOrder, sortType, allProducts, priceRanges, ratings]);
 
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [sortOrder, sortType, priceRanges, ratings]);
+
     const handleSortChange = (type, order) => {
         setSortType(type);
         setSortOrder(order);
@@ -142,15 +149,13 @@ const Categories = () => {
     };
 
     const handleRatingChange = (rating) => {
-        // Làm tròn rating về số nguyên gần nhất
-        const roundedRating = Math.round(rating);
-        console.log("Rounded Rating:", roundedRating); // Sẽ in ra giá trị rating đã được làm tròn
-
-        setRatings((prevRatings) =>
-            prevRatings.includes(roundedRating)
-                ? prevRatings.filter((r) => r !== roundedRating)
-                : [...prevRatings, roundedRating]
-        );
+        setRatings((prevRatings) => {
+            if (prevRatings.includes(rating)) {
+                return prevRatings.filter((r) => r !== rating);
+            } else {
+                return [...prevRatings, rating];
+            }
+        });
     };
 
     const handleResetFilters = () => {
@@ -158,10 +163,21 @@ const Categories = () => {
         setRatings([]);
     };
 
+    // Tính toán chỉ số sản phẩm bắt đầu và kết thúc cho trang hiện tại
+    const indexOfLastProduct = currentPage * productsPerPage;
+    const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+    const currentProducts = filteredProducts.slice(
+        indexOfFirstProduct,
+        indexOfLastProduct
+    );
+
+    // Tính toán số lượng trang
+    const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+
     return (
         <div className="categories-page">
-            <div className="container category-banners">
-                <div style={{ width: "100%" }}>
+            <div className="container category-banners grid wide">
+                <div style={{ width: "100%", marginTop: "20px" }}>
                     <CustomSlider>
                         {banners.map((banner, index) => (
                             <img
@@ -199,13 +215,13 @@ const Categories = () => {
                                         <Loading />
                                     ) : error ? (
                                         <p>{error}</p>
-                                    ) : filteredProducts.length === 0 ? (
+                                    ) : currentProducts.length === 0 ? (
                                         <p>
                                             Không có sản phẩm nào trong danh mục
                                             này.
                                         </p>
                                     ) : (
-                                        filteredProducts.map((product) => (
+                                        currentProducts.map((product) => (
                                             <Product
                                                 key={product.product_id}
                                                 product={product}
@@ -214,7 +230,11 @@ const Categories = () => {
                                     )}
                                 </div>
                             </div>
-                            <Paginate />
+                            <Paginate
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={setCurrentPage}
+                            />
                         </div>
                     </div>
                 </div>

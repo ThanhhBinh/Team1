@@ -3,25 +3,49 @@ import { useSelector } from "react-redux";
 import Payment from "./PaymentPaypel";
 export default function Confirmation() {
     const items = useSelector((state) => state.cart.items);
-    console.log(items);
+    const userId = localStorage.getItem("user_id");
     const productCount = useSelector((state) => {
-        const items = state.cart.items || [];
-        return Array.isArray(items) ? items.length : 0;
+        const userItems = state.cart.items.filter(
+            (item) => item.user_id === userId
+        );
+        return Array.isArray(userItems) ? userItems.length : 0;
     });
-    const totalAmount = items
-        .reduce((total, item) => {
-            return total + (item.price - item.discount) * item.count;
-        }, 0)
-        .toFixed(2);
-    const itemTotal = items
-        .reduce((total, item) => {
-            const itemTotal = (
-                (item.price - item.discount) *
-                item.count
-            ).toFixed(2);
-            return total + parseFloat(itemTotal);
-        }, 0)
-        .toFixed(2);
+
+    const userItems = items.filter((item) => item.user_id === userId);
+    console.log(userId);
+    const totalAmount = useSelector((state) => {
+        const userItems = state.cart.items.filter(
+            (item) => item.user_id === userId
+        );
+        return userItems
+            .reduce((total, item) => {
+                return total + (item.price - item.discount) * item.count;
+            }, 0)
+            .toFixed(2);
+    });
+
+    const formatVND = (value) => {
+        return value.toLocaleString("vi-VN", {
+            style: "currency",
+            currency: "VND",
+        });
+    };
+
+    // Tính tổng số tiền của sản phẩm
+    const itemTotal = useSelector((state) => {
+        if (!userId) return "0";
+
+        const userItems = state.cart.items.filter(
+            (item) => item.user_id === userId
+        );
+
+        const total = userItems.reduce((total, item) => {
+            const itemTotal = (item.price - item.discount) * item.count;
+            return total + itemTotal;
+        }, 0);
+
+        return formatVND(total);
+    });
     return (
         <div className="Ts66FD" style={{}}>
             <div className="iAQnc1">
@@ -150,7 +174,7 @@ export default function Confirmation() {
                                             Chat ngay
                                         </button>
                                     </div>
-                                    {items.map((item) => (
+                                    {userItems.map((item) => (
                                         <div className="_MbENL" key={item.id}>
                                             <div className="CZ00qG gTUoYD">
                                                 <div className="FisIRS ysaw0G">
@@ -173,221 +197,26 @@ export default function Confirmation() {
                                                         </div>
                                                     </span>
                                                 </div>
-                                                <div className="FisIRS ri4hV6">
-                                                    <span className="Ev9jhR">
-                                                        Loại: Dây Sạc Tự Ngắt
-                                                    </span>
-                                                </div>
+                                                <div className="FisIRS ri4hV6"></div>
                                                 <div className="FisIRS ql440Q">
-                                                    {(
+                                                    {formatVND(
                                                         item.price -
-                                                        item.discount
-                                                    ).toFixed(2)}
-                                                    đ
+                                                            item.discount
+                                                    )}
                                                 </div>
                                                 <div className="FisIRS IceXFW">
                                                     {item.count}
                                                 </div>
                                                 <div className="FisIRS BeMjeR">
-                                                    {(
+                                                    {formatVND(
                                                         (item.price -
                                                             item.discount) *
-                                                        item.count
-                                                    ).toFixed(2)}
+                                                            item.count
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
-                                    <div className="qiWDmB">
-                                        <div className="GfZHhW">
-                                            <div className="pAJRbi">
-                                                <div className="_di_zC">
-                                                    <svg
-                                                        fill="none"
-                                                        viewBox="0 -2 23 22"
-                                                        className="shopee-svg-icon icon-voucher-line"
-                                                    >
-                                                        <g filter="url(#voucher-filter0_d)">
-                                                            <mask
-                                                                id="a"
-                                                                fill="#fff"
-                                                            >
-                                                                <path
-                                                                    fillRule="evenodd"
-                                                                    clipRule="evenodd"
-                                                                    d="M1 2h18v2.32a1.5 1.5 0 000 2.75v.65a1.5 1.5 0 000 2.75v.65a1.5 1.5 0 000 2.75V16H1v-2.12a1.5 1.5 0 000-2.75v-.65a1.5 1.5 0 000-2.75v-.65a1.5 1.5 0 000-2.75V2z"
-                                                                />
-                                                            </mask>
-                                                            <path
-                                                                d="M19 2h1V1h-1v1zM1 2V1H0v1h1zm18 2.32l.4.92.6-.26v-.66h-1zm0 2.75h1v-.65l-.6-.26-.4.91zm0 .65l.4.92.6-.26v-.66h-1zm0 2.75h1v-.65l-.6-.26-.4.91zm0 .65l.4.92.6-.26v-.66h-1zm0 2.75h1v-.65l-.6-.26-.4.91zM19 16v1h1v-1h-1zM1 16H0v1h1v-1zm0-2.12l-.4-.92-.6.26v.66h1zm0-2.75H0v.65l.6.26.4-.91zm0-.65l-.4-.92-.6.26v.66h1zm0-2.75H0v.65l.6.26.4-.91zm0-.65l-.4-.92-.6.26v.66h1zm0-2.75H0v.65l.6.26.4-.91zM19 1H1v2h18V1zm1 3.32V2h-2v2.32h2zm-.9 1.38c0-.2.12-.38.3-.46l-.8-1.83a2.5 2.5 0 00-1.5 2.29h2zm.3.46a.5.5 0 01-.3-.46h-2c0 1.03.62 1.9 1.5 2.3l.8-1.84zm.6 1.56v-.65h-2v.65h2zm-.9 1.38c0-.2.12-.38.3-.46l-.8-1.83a2.5 2.5 0 00-1.5 2.29h2zm.3.46a.5.5 0 01-.3-.46h-2c0 1.03.62 1.9 1.5 2.3l.8-1.84zm.6 1.56v-.65h-2v.65h2zm-.9 1.38c0-.2.12-.38.3-.46l-.8-1.83a2.5 2.5 0 00-1.5 2.29h2zm.3.46a.5.5 0 01-.3-.46h-2c0 1.03.62 1.9 1.5 2.3l.8-1.84zM20 16v-2.13h-2V16h2zM1 17h18v-2H1v2zm-1-3.12V16h2v-2.12H0zm1.4.91a2.5 2.5 0 001.5-2.29h-2a.5.5 0 01-.3.46l.8 1.83zm1.5-2.29a2.5 2.5 0 00-1.5-2.3l-.8 1.84c.18.08.3.26.3.46h2zM0 10.48v.65h2v-.65H0zM.9 9.1a.5.5 0 01-.3.46l.8 1.83A2.5 2.5 0 002.9 9.1h-2zm-.3-.46c.18.08.3.26.3.46h2a2.5 2.5 0 00-1.5-2.3L.6 8.65zM0 7.08v.65h2v-.65H0zM.9 5.7a.5.5 0 01-.3.46l.8 1.83A2.5 2.5 0 002.9 5.7h-2zm-.3-.46c.18.08.3.26.3.46h2a2.5 2.5 0 00-1.5-2.3L.6 5.25zM0 2v2.33h2V2H0z"
-                                                                mask="url(#a)"
-                                                            />
-                                                        </g>
-                                                        <path
-                                                            clipRule="evenodd"
-                                                            d="M6.49 14.18h.86v-1.6h-.86v1.6zM6.49 11.18h.86v-1.6h-.86v1.6zM6.49 8.18h.86v-1.6h-.86v1.6zM6.49 5.18h.86v-1.6h-.86v1.6z"
-                                                        />
-                                                        <defs>
-                                                            <filter
-                                                                id="voucher-filter0_d"
-                                                                x={0}
-                                                                y={1}
-                                                                width={20}
-                                                                height={16}
-                                                                filterUnits="userSpaceOnUse"
-                                                                colorInterpolationFilters="sRGB"
-                                                            >
-                                                                <feFlood
-                                                                    floodOpacity={
-                                                                        0
-                                                                    }
-                                                                    result="BackgroundImageFix"
-                                                                />
-                                                                <feColorMatrix
-                                                                    in="SourceAlpha"
-                                                                    values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                                                                />
-                                                                <feOffset />
-                                                                <feGaussianBlur stdDeviation=".5" />
-                                                                <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.09 0" />
-                                                                <feBlend
-                                                                    in2="BackgroundImageFix"
-                                                                    result="effect1_dropShadow"
-                                                                />
-                                                                <feBlend
-                                                                    in="SourceGraphic"
-                                                                    in2="effect1_dropShadow"
-                                                                    result="shape"
-                                                                />
-                                                            </filter>
-                                                        </defs>
-                                                    </svg>
-                                                    <div>Voucher của Shop</div>
-                                                </div>
-                                            </div>
-                                            <div className="w_BRAt">
-                                                <div>
-                                                    <div>
-                                                        <button className="Rvf_eZ">
-                                                            <span>
-                                                                Chọn Voucher
-                                                            </span>
-                                                        </button>
-                                                        <div
-                                                            style={{
-                                                                display:
-                                                                    "contents",
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="pkby_W">
-                                <div className="vhebLm">
-                                    <div className="ilUPM5 gYGNQa">
-                                        <div className="_rHKrD">
-                                            <span>Lời nhắn:</span>
-                                            <div className="kkopFm">
-                                                <div className="dbuoBq hz4qtM">
-                                                    <div className="Db29Rw OVU6kl">
-                                                        <input
-                                                            className="RLi1CA"
-                                                            type="text"
-                                                            placeholder="Lưu ý cho Người bán..."
-                                                            aria-label="Lời nhắn:"
-                                                            defaultValue
-                                                        />
-                                                    </div>
-                                                    <div />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="ilUPM5 a7GtMg">
-                                        <div className="B61oKB">
-                                            Đơn vị vận chuyển:
-                                        </div>
-                                        <div className="ETYtIl">
-                                            <div>Nhanh</div>
-                                        </div>
-                                        <div className="OVFyH9" />
-                                        <div className="qQ6AUX VGGCTl">
-                                            <img src="https://deo.shopeemobile.com/shopee/shopee-pcmall-live-sg/checkout/41fe56ab756fc3082a08.svg" />
-                                            Đảm bảo nhận hàng vào 23 Tháng 8
-                                            <div className="xkRS5s TYkf6d">
-                                                <div>
-                                                    Nhận Voucher trị giá ₫15.000
-                                                    nếu đơn hàng được giao đến
-                                                    bạn sau ngày 23 Tháng 8
-                                                    2024.
-                                                </div>
-                                                <div>
-                                                    <svg
-                                                        enableBackground="new 0 0 15 15"
-                                                        viewBox="0 0 15 15"
-                                                        x={0}
-                                                        y={0}
-                                                        className="shopee-svg-icon N0f2bM icon-help"
-                                                    >
-                                                        <g>
-                                                            <circle
-                                                                cx="7.5"
-                                                                cy="7.5"
-                                                                fill="none"
-                                                                r="6.5"
-                                                                strokeMiterlimit={
-                                                                    10
-                                                                }
-                                                            />
-                                                            <path
-                                                                d="m5.3 5.3c.1-.3.3-.6.5-.8s.4-.4.7-.5.6-.2 1-.2c.3 0 .6 0 .9.1s.5.2.7.4.4.4.5.7.2.6.2.9c0 .2 0 .4-.1.6s-.1.3-.2.5c-.1.1-.2.2-.3.3-.1.2-.2.3-.4.4-.1.1-.2.2-.3.3s-.2.2-.3.4c-.1.1-.1.2-.2.4s-.1.3-.1.5v.4h-.9v-.5c0-.3.1-.6.2-.8s.2-.4.3-.5c.2-.2.3-.3.5-.5.1-.1.3-.3.4-.4.1-.2.2-.3.3-.5s.1-.4.1-.7c0-.4-.2-.7-.4-.9s-.5-.3-.9-.3c-.3 0-.5 0-.7.1-.1.1-.3.2-.4.4-.1.1-.2.3-.3.5 0 .2-.1.5-.1.7h-.9c0-.3.1-.7.2-1zm2.8 5.1v1.2h-1.2v-1.2z"
-                                                                stroke="none"
-                                                            />
-                                                        </g>
-                                                    </svg>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <button className="PqYFWz div-style">
-                                            Thay đổi
-                                        </button>
-                                        <div className="vUHv3D">
-                                            {" "}
-                                            <span>₫42.500</span>
-                                        </div>
-                                        <div className="OlYh3F" />
-                                        <div className="M1mHTq">
-                                            <div className="i4v4xh jWOOGK">
-                                                Được đồng kiểm.
-                                            </div>
-                                            <svg
-                                                enableBackground="new 0 0 15 15"
-                                                viewBox="0 0 15 15"
-                                                x={0}
-                                                y={0}
-                                                className="shopee-svg-icon YS5UZJ icon-help"
-                                            >
-                                                <g>
-                                                    <circle
-                                                        cx="7.5"
-                                                        cy="7.5"
-                                                        fill="none"
-                                                        r="6.5"
-                                                        strokeMiterlimit={10}
-                                                    />
-                                                    <path
-                                                        d="m5.3 5.3c.1-.3.3-.6.5-.8s.4-.4.7-.5.6-.2 1-.2c.3 0 .6 0 .9.1s.5.2.7.4.4.4.5.7.2.6.2.9c0 .2 0 .4-.1.6s-.1.3-.2.5c-.1.1-.2.2-.3.3-.1.2-.2.3-.4.4-.1.1-.2.2-.3.3s-.2.2-.3.4c-.1.1-.1.2-.2.4s-.1.3-.1.5v.4h-.9v-.5c0-.3.1-.6.2-.8s.2-.4.3-.5c.2-.2.3-.3.5-.5.1-.1.3-.3.4-.4.1-.2.2-.3.3-.5s.1-.4.1-.7c0-.4-.2-.7-.4-.9s-.5-.3-.9-.3c-.3 0-.5 0-.7.1-.1.1-.3.2-.4.4-.1.1-.2.3-.3.5 0 .2-.1.5-.1.7h-.9c0-.3.1-.7.2-1zm2.8 5.1v1.2h-1.2v-1.2z"
-                                                        stroke="none"
-                                                    />
-                                                </g>
-                                            </svg>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                             <div className="G6NNuz">
@@ -523,7 +352,7 @@ export default function Confirmation() {
                             Phương thức thanh toán
                         </h2>
                         <div className="IN_fAG">
-                            <div className="UPSKhT wp5W5e">a</div>
+                            <div className="UPSKhT wp5W5e"></div>
                             <div className="LhNuge">
                                 Thanh toán khi nhận hàng
                             </div>

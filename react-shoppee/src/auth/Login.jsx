@@ -1,59 +1,51 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { userApi } from "../api/userApi"; // Đảm bảo userApi đã được cấu hình đúng
+import { userApi } from "../api/userApi";
+import { setUser } from "../state/userSlice";
 
 export default function Login() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
+    const [loginData, setLoginData] = useState({
+        loginKey: "",
+        password: "",
+    });
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const user = localStorage.getItem("user");
-        if (user) {
-            const parsedUser = JSON.parse(user);
-            if (parsedUser.role === "Admin-web") {
-                navigate("/admin"); // Sử dụng navigate để chuyển hướng nội bộ
-            } else {
-                navigate("/"); // Trang chính
-            }
-        }
-    }, [navigate]);
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setLoginData({ ...loginData, [name]: value });
+    };
 
-    async function handleLogin(event) {
-        event.preventDefault();
+    const handleSubmit = async (e) => {
+        e.preventDefault();
         setLoading(true);
-
         try {
-            const data = { email, password };
-            const response = await userApi.login(data);
+            // Gọi API đăng nhập
+            const response = await userApi.login(loginData);
+            console.log("Login Response:", response);
 
-            if (response && response.data) {
-                const user = response.data;
+            // Xóa thông tin người dùng cũ khỏi localStorage
+            localStorage.removeItem("user");
+            localStorage.removeItem("user_id");
 
-                // So sánh mật khẩu với mật khẩu đã mã hóa từ server (nếu có)
-                // Nếu bạn đang dùng MockAPI, bạn có thể bỏ qua phần so sánh mật khẩu
+            // Lưu thông tin người dùng mới vào localStorage
+            const user = response.data;
+            localStorage.setItem("user", JSON.stringify(user));
+            localStorage.setItem("user_id", user.id); // Lưu user_id vào localStorage
 
-                // Lưu thông tin người dùng vào localStorage
-                localStorage.setItem("user", JSON.stringify(user));
+            // Cập nhật state hoặc context nếu cần
+            setUser(user);
 
-                // Chuyển hướng dựa trên vai trò của người dùng
-                if (user.role === "Admin-web") {
-                    navigate("/admin");
-                } else {
-                    navigate("/");
-                }
-            } else {
-                setError("Đăng nhập không thành công. Vui lòng thử lại.");
-            }
+            // Chuyển hướng sau khi đăng nhập thành công
+            navigate("/"); // Thay đổi đường dẫn theo ý muốn
+            alert("Đăng nhập thành công!");
         } catch (error) {
-            console.error("Lỗi:", error.message);
-            setError("Đăng nhập thất bại. Vui lòng thử lại.");
+            console.error("Login Error:", error);
+            alert("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     return (
         <div>
@@ -76,28 +68,14 @@ export default function Login() {
                                 <div className="WYUsbN">
                                     <div className="Rcb5be">
                                         <div className="Vw8EiR">Đăng nhập</div>
-                                        <div className="F71qL6">
-                                            <div className="tTrrEC">
-                                                Đăng nhập với mã QR
-                                            </div>
-                                            <a
-                                                className="_t3qNI"
-                                                href="/buyer/login/qr?next=https%3A%2F%2Fshopee.vn%2F"
-                                            >
-                                                {/* SVG */}
-                                            </a>
-                                        </div>
                                     </div>
                                 </div>
                                 <div className="GNOKX7">
                                     <div />
-                                    <form onSubmit={handleLogin}>
+                                    <form onSubmit={handleSubmit}>
                                         <div className="F8zDuW">
                                             <div className="gMTn3o">
                                                 <input
-                                                    onChange={(e) =>
-                                                        setEmail(e.target.value)
-                                                    }
                                                     className="Z7tNyT"
                                                     type="text"
                                                     placeholder="Email/Số điện thoại/Tên đăng nhập"
@@ -105,17 +83,14 @@ export default function Login() {
                                                     name="loginKey"
                                                     maxLength={128}
                                                     aria-invalid="false"
+                                                    value={loginData.loginKey}
+                                                    onChange={handleChange}
                                                 />
                                             </div>
                                         </div>
                                         <div className="L2QI3a">
                                             <div className="gMTn3o">
                                                 <input
-                                                    onChange={(e) =>
-                                                        setPassword(
-                                                            e.target.value
-                                                        )
-                                                    }
                                                     className="Z7tNyT"
                                                     type="password"
                                                     placeholder="Mật khẩu"
@@ -123,6 +98,8 @@ export default function Login() {
                                                     name="password"
                                                     maxLength={16}
                                                     aria-invalid="false"
+                                                    value={loginData.password}
+                                                    onChange={handleChange}
                                                 />
                                                 <button
                                                     type="button"
@@ -142,8 +119,7 @@ export default function Login() {
                                                 : "Đăng nhập"}
                                         </button>
                                     </form>
-                                    {error && <p>{error}</p>}{" "}
-                                    {/* Hiển thị thông báo lỗi */}
+
                                     <div className="PJtD9H">
                                         <a
                                             className="FzyRNj"
@@ -183,10 +159,7 @@ export default function Login() {
                                 <div className="UbljBq">
                                     <div className="P9drEz HYzyIh">
                                         Bạn mới biết đến Shopee?
-                                        <a
-                                            className="VmgVc8"
-                                            href="/buyer/signup?next=https%3A%2F%2Fshopee.vn%2F"
-                                        >
+                                        <a className="VmgVc8" href="/register">
                                             Đăng ký
                                         </a>
                                     </div>

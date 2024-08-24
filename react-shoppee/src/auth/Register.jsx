@@ -1,37 +1,50 @@
 import React, { useState } from "react";
 import { userApi } from "../api/userApi";
-
+import { useNavigate } from "react-router-dom";
 export default function Register() {
     const [formData, setFormData] = useState({
         username: "",
         email: "",
         password: "",
+        gender: "",
+        phone: "",
+        address: "",
+        image: "",
     });
 
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
     };
-
+    // Đảm bảo rằng bạn gọi hook useNavigate
+    const navigate = useNavigate();
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            // Kiểm tra email trước khi đăng ký
+            // Kiểm tra email đã đăng ký hay chưa
             const emailCheck = await userApi.checkEmail(formData.email);
             if (emailCheck.exists) {
-                alert("Email đã tồn tại. Vui lòng sử dụng email khác.");
+                alert(
+                    "Email này đã được đăng ký. Vui lòng sử dụng email khác."
+                );
                 return;
             }
 
-            // Đăng ký người dùng
-            await userApi.register(formData);
+            // Nếu email chưa đăng ký, tiến hành đăng ký
+            const response = await userApi.register(formData);
+            console.log("Register Response:", response);
 
+            // Lưu thông tin vào localStorage
+            localStorage.setItem("user", JSON.stringify(response));
+
+            // Chuyển hướng hoặc thông báo đăng ký thành công
             alert("Đăng ký thành công!");
+
+            // Điều hướng đến trang đăng nhập
+            navigate("/login"); // Sử dụng hook useNavigate để chuyển hướng
         } catch (error) {
-            console.error(error);
-            alert("Đăng ký thất bại!");
+            console.error("Registration Error:", error);
+            alert("Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.");
         }
     };
 
@@ -44,7 +57,7 @@ export default function Register() {
                             <img
                                 className="logo-login-e"
                                 src="assets/img/logo/shopee-logo1.png"
-                                alt="a"
+                                alt="logo"
                             />
                         </a>
                         <div className="S9AO00">Đăng ký</div>
@@ -92,6 +105,7 @@ export default function Register() {
                                                     name="username"
                                                     maxLength={128}
                                                     aria-invalid="false"
+                                                    value={formData.username}
                                                     onChange={handleChange}
                                                 />
                                             </div>
@@ -104,6 +118,7 @@ export default function Register() {
                                                     name="email"
                                                     maxLength={128}
                                                     aria-invalid="false"
+                                                    value={formData.email}
                                                     onChange={handleChange}
                                                 />
                                             </div>
@@ -116,6 +131,7 @@ export default function Register() {
                                                     name="password"
                                                     maxLength={128}
                                                     aria-invalid="false"
+                                                    value={formData.password}
                                                     onChange={handleChange}
                                                 />
                                             </div>
@@ -132,10 +148,7 @@ export default function Register() {
                                 <div className="UbljBq">
                                     <div className="P9drEz HYzyIh">
                                         Bạn đã có tài khoản?
-                                        <a
-                                            className="VmgVc8"
-                                            href="/buyer/signup?next=https%3A%2F%2Fshopee.vn%2F"
-                                        >
+                                        <a className="VmgVc8" href="/login">
                                             Đăng nhập
                                         </a>
                                     </div>

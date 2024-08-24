@@ -1,82 +1,34 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 
 const CategoryMenu = ({
     onPriceRangeChange,
     onRatingChange,
     onResetFilters,
 }) => {
+    const checkboxesRef = useRef([]);
+    const [minPrice, setMinPrice] = useState("");
+    const [maxPrice, setMaxPrice] = useState("");
+
+    const handleResetClick = () => {
+        // Bỏ chọn tất cả các checkbox
+        checkboxesRef.current.forEach((checkbox) => {
+            if (checkbox) checkbox.checked = false;
+        });
+
+        // Reset giá trị khoảng giá
+        setMinPrice("");
+        setMaxPrice("");
+
+        // Gọi hàm onResetFilters để reset các bộ lọc trong state của component cha
+        onResetFilters();
+    };
+
     return (
         <nav className="category">
             <h3 className="category-heading">
                 <i className="category-heading-icon fas fa-list-ul" />
                 Bộ lọc tìm kiếm
             </h3>
-            <div className="category-group">
-                <div className="category-group-title">Theo Danh Mục</div>
-                <ul className="category-group-list">
-                    <li className="category-group-item">
-                        <input
-                            type="checkbox"
-                            className="category-group-item-check"
-                        />
-                        Thiết bị mạng
-                    </li>
-                    <li className="category-group-item">
-                        <input
-                            type="checkbox"
-                            className="category-group-item-check"
-                        />
-                        Chuột và bàn phím
-                    </li>
-                    <li className="category-group-item">
-                        <input
-                            type="checkbox"
-                            className="category-group-item-check"
-                        />
-                        USB
-                    </li>
-                    <li className="category-group-item">
-                        <input
-                            type="checkbox"
-                            className="category-group-item-check"
-                        />
-                        Linh kiện máy tính
-                    </li>
-                    <li className="category-group-item">
-                        <input
-                            type="checkbox"
-                            className="category-group-item-check"
-                        />
-                        Wifi
-                    </li>
-                </ul>
-            </div>
-            <div className="category-group">
-                <div className="category-group-title">Thương Hiệu</div>
-                <ul className="category-group-list">
-                    <li className="category-group-item">
-                        <input
-                            type="checkbox"
-                            className="category-group-item-check"
-                        />
-                        Kingston
-                    </li>
-                    <li className="category-group-item">
-                        <input
-                            type="checkbox"
-                            className="category-group-item-check"
-                        />
-                        Sandisk
-                    </li>
-                    <li className="category-group-item">
-                        <input
-                            type="checkbox"
-                            className="category-group-item-check"
-                        />
-                        Seagate
-                    </li>
-                </ul>
-            </div>
             <div className="category-group">
                 <div className="category-group-title">Khoảng Giá</div>
                 <div className="category-group-filter">
@@ -85,6 +37,8 @@ const CategoryMenu = ({
                         name="min"
                         placeholder="đ TỪ"
                         className="category-group-filter-input"
+                        value={minPrice}
+                        onChange={(e) => setMinPrice(e.target.value)}
                     />
                     <i className="fas fa-arrow-right" />
                     <input
@@ -92,11 +46,13 @@ const CategoryMenu = ({
                         name="max"
                         placeholder="đ ĐẾN"
                         className="category-group-filter-input"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(e.target.value)}
                     />
                 </div>
                 <button
                     className="btn btn--primary category-group-filter-btn"
-                    onClick={onPriceRangeChange}
+                    onClick={() => onPriceRangeChange(minPrice, maxPrice)}
                 >
                     Thêm khoảng giá
                 </button>
@@ -108,6 +64,7 @@ const CategoryMenu = ({
                         type="checkbox"
                         className="category-group-item-check"
                         onChange={() => onRatingChange(5)}
+                        ref={(el) => (checkboxesRef.current[8] = el)}
                     />
                     <i className="star-checked far fa-star" />
                     <i className="star-checked far fa-star" />
@@ -120,6 +77,7 @@ const CategoryMenu = ({
                         type="checkbox"
                         className="category-group-item-check"
                         onChange={() => onRatingChange(4)}
+                        ref={(el) => (checkboxesRef.current[9] = el)}
                     />
                     <i className="star-checked far fa-star" />
                     <i className="star-checked far fa-star" />
@@ -132,6 +90,7 @@ const CategoryMenu = ({
                         type="checkbox"
                         className="category-group-item-check"
                         onChange={() => onRatingChange(3)}
+                        ref={(el) => (checkboxesRef.current[10] = el)}
                     />
                     <i className="star-checked far fa-star" />
                     <i className="star-checked far fa-star" />
@@ -144,6 +103,7 @@ const CategoryMenu = ({
                         type="checkbox"
                         className="category-group-item-check"
                         onChange={() => onRatingChange(2)}
+                        ref={(el) => (checkboxesRef.current[11] = el)}
                     />
                     <i className="star-checked far fa-star" />
                     <i className="star-checked far fa-star" />
@@ -156,6 +116,7 @@ const CategoryMenu = ({
                         type="checkbox"
                         className="category-group-item-check"
                         onChange={() => onRatingChange(1)}
+                        ref={(el) => (checkboxesRef.current[12] = el)}
                     />
                     <i className="star-checked far fa-star" />
                     <i className="star-uncheck far fa-star" />
@@ -166,7 +127,7 @@ const CategoryMenu = ({
             </div>
             <button
                 className="btn btn--primary category-group-filter-btn category-group--margin"
-                onClick={onResetFilters}
+                onClick={handleResetClick}
             >
                 LÀM MỚI
             </button>

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Product from "../../components/ProductCard";
 import { addToCart } from "../../state/cartSlice";
 import { productApi } from "../../api/productApi";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import PageProductShop from "./PageProductShop";
 import ProductRating from "./ProductRating";
 import Loading from "../../components/Loading";
@@ -14,18 +14,37 @@ export default function ProductDetail() {
     const [loading, setLoading] = useState(true);
     const [reviewCount, setReviewCount] = useState(null);
     const { id } = useParams(); // Lấy id từ URL
+    const userId = useSelector((state) => state.user.id);
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [quantity, setQuantity] = useState(1);
     const [showNotification, setShowNotification] = useState(false);
     const [relatedProducts, setRelatedProducts] = useState([]);
     const [suggestedProducts, setSuggestedProducts] = useState([]);
     const handleAddToCart = () => {
         if (product) {
-            dispatch(addToCart({ item: product, quantity }));
-            setShowNotification(true); // Hiển thị thông báo
-            setTimeout(() => {
-                setShowNotification(false); // Ẩn thông báo sau 3 giây
-            }, 3000);
+            const userId = localStorage.getItem("user_id"); // Lấy user_id từ localStorage
+            if (userId) {
+                dispatch(
+                    addToCart({ item: product, quantity, user_id: userId })
+                );
+                setShowNotification(true);
+                setTimeout(() => {
+                    setShowNotification(false);
+                }, 3000);
+            } else {
+                // Nếu không có user_id, thông báo cho người dùng hoặc chuyển hướng đến trang đăng nhập
+                alert("Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.");
+                // Hoặc điều hướng đến trang đăng nhập
+                navigate("/login");
+            }
+        }
+    };
+
+    const handleBuyNow = () => {
+        if (product) {
+            // Điều hướng đến trang thanh toán và gửi thông tin sản phẩm
+            navigate("/checkout", { state: { product, quantity } });
         }
     };
     const formatVND = (value) => {
@@ -698,6 +717,7 @@ export default function ProductDetail() {
                                                 type="button"
                                                 className="btn btn-solid-primary btn--l YuENex"
                                                 aria-disabled="false"
+                                                onClick={handleBuyNow}
                                             >
                                                 Mua ngay
                                             </button>

@@ -1,20 +1,83 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import AppUrl from "../../api/AppURL";
 import { useDispatch, useSelector } from "react-redux";
 import { removeFromCart } from "../../state/cartSlice";
 
 export default function Banner() {
-    const productCount = useSelector((state) => {
-        const items = state.cart.items || [];
-        return Array.isArray(items) ? items.length : 0;
-    });
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchHistory, setSearchHistory] = useState([]);
+    const [showHistory, setShowHistory] = useState(false);
+    const navigate = useNavigate();
     const dispatch = useDispatch();
     const items = useSelector((state) => state.cart.items);
     const hasItems = items && items.length > 0;
+    const userId = localStorage.getItem("user_id");
+    const productCount = useSelector((state) => {
+        const items = state.cart.items || [];
+        const userId = localStorage.getItem("user_id");
+        const userItems = items.filter((item) => item.user_id === userId);
+        return Array.isArray(userItems) ? userItems.length : 0;
+    });
+
+    // Giả sử user_id được lưu trữ trong localStorage
+    const userItems = items.filter((item) => item.user_id === userId);
 
     const handleRemoveFromCart = (productId) => {
-        dispatch(removeFromCart({ product_id: productId }));
+        const item = userItems.find((item) => item.product_id === productId);
+        if (item) {
+            dispatch(
+                removeFromCart({ product_id: productId, user_id: userId })
+            );
+        }
     };
+
+    useEffect(() => {
+        // Lấy lịch sử tìm kiếm từ localStorage khi component được tải
+        const savedHistory = localStorage.getItem("searchHistory");
+        if (savedHistory) {
+            setSearchHistory(JSON.parse(savedHistory));
+        }
+    }, []);
+
+    const handleSearch = () => {
+        if (searchQuery.trim()) {
+            setSearchHistory((prevHistory) => {
+                const newHistory = [searchQuery.trim(), ...prevHistory];
+                const uniqueHistory = Array.from(new Set(newHistory)).slice(
+                    0,
+                    10
+                );
+
+                localStorage.setItem(
+                    "searchHistory",
+                    JSON.stringify(uniqueHistory)
+                );
+
+                return uniqueHistory;
+            });
+
+            navigate(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
+            setShowHistory(false);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter") {
+            handleSearch();
+        }
+    };
+
+    const handleHistoryClick = (query) => {
+        setSearchQuery(query);
+        handleSearch();
+    };
+
+    const handleInputChange = (e) => {
+        setSearchQuery(e.target.value);
+        setShowHistory(true);
+    };
+
     return (
         <div className="header__contain">
             <label htmlFor="mobile-search" className="header__mobile-search">
@@ -23,7 +86,7 @@ export default function Banner() {
             <div className="header__logo">
                 <a href="/" className="header__logo-link">
                     <img
-                        alt=""
+                        alt="Logo"
                         src={`${AppUrl.ImageFE}/assets/img/logo/logo-full-white.png`}
                         className="header__logo-img"
                     />
@@ -41,48 +104,40 @@ export default function Banner() {
                         type="text"
                         className="header__search-input"
                         placeholder="Tìm kiếm trên Shoppee"
+                        value={searchQuery}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
                     />
-                    <div className="header__search-history">
-                        <ul className="header__search-history-list">
-                            <li className="header__search-history-item">
-                                <a href="https://example.com">
-                                    Combo 30 điểm đại học khối A
-                                </a>
-                            </li>
-                            <li className="header__search-history-item">
-                                <a href="https://example.com">
-                                    Combo 30 điểm đại học khối D
-                                </a>
-                            </li>
-                            <li className="header__search-history-item">
-                                <a href="https://example.com">
-                                    Mỹ phẩm cho người yêu
-                                </a>
-                            </li>
-                            <li className="header__search-history-item">
-                                <a href="https://example.com">
-                                    Bí kíp tán crush auto đổ
-                                </a>
-                            </li>
-                            <li className="header__search-history-item">
-                                <a href="https://example.com">
-                                    Iphone 13 Pro Max giá rẻ
-                                </a>
-                            </li>
-                            <li className="header__search-history-item">
-                                <a href="https://example.com">
-                                    Người yêu đẹp trai như LTP
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
+                    {showHistory && searchHistory.length > 0 && (
+                        <div className="header__search-history">
+                            <ul className="header__search-history-list">
+                                {searchHistory.map((item, index) => (
+                                    <li
+                                        key={index}
+                                        className="header__search-history-item"
+                                    >
+                                        <a
+                                            href="#"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handleHistoryClick(item);
+                                            }}
+                                        >
+                                            {item}
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
-                <button className="btn header__search-btn">
+                <button
+                    className="btn header__search-btn"
+                    onClick={handleSearch}
+                >
                     <i className="header__search-btn-icon fas fa-search" />
                 </button>
             </div>
-            {/* header__cart--no-cart */}
-            {/* header__cart--has-cart */}
             <div className="header__cart header__cart--has-cart">
                 <a href={`${AppUrl.ImageFE}/checkout`}>
                     <i className="header__cart-icon fas fa-shopping-cart" />
@@ -94,7 +149,7 @@ export default function Banner() {
                             Sản phẩm đã chọn
                         </h4>
                         <ul className="header__cart-list-item">
-                            {items.map((item) => (
+                            {userItems.map((item) => (
                                 <li
                                     key={item.product_id}
                                     className="header__cart-item"
@@ -136,7 +191,7 @@ export default function Banner() {
                         </ul>
                         <div className="header__cart-footer">
                             <a
-                                href="checkout"
+                                href="\checkout"
                                 className="btn btn--primary header__cart-see-cart"
                             >
                                 Xem giỏ hàng
@@ -146,7 +201,7 @@ export default function Banner() {
                 ) : (
                     <div className="header__cart-list no-cart">
                         <img
-                            alt=""
+                            alt="No Cart"
                             src={`${AppUrl.ImageFE}/assets/img/sp/no-cart.png`}
                             className="header__no-cart-img"
                         />

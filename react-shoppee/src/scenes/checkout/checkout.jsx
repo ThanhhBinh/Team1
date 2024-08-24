@@ -1,5 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { productApi } from "../../api/productApi";
+import Loading from "../../components/Loading";
+import Product from "../../components/ProductCard";
 import {
     removeFromCart,
     increaseCount,
@@ -10,39 +13,80 @@ import { useNavigate } from "react-router-dom";
 
 export default function Checkout() {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const [suggestedProducts, setSuggestedProducts] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    const userId = localStorage.getItem("user_id");
     const items = useSelector((state) => state.cart.items);
-    const navigate = useNavigate(); // Hook để điều hướng
+    const userItems = items.filter((item) => item.user_id === userId);
+
+    useEffect(() => {
+        const fetchProductDetail = async () => {
+            try {
+                setLoading(true);
+                const response = await productApi.getAll();
+                const allProducts = response.data;
+                const topProducts = allProducts
+                    .sort((a, b) => b.product_stock - a.product_stock) // Sắp xếp theo số lượng bán giảm dần
+                    .slice(0, 12);
+                setSuggestedProducts(topProducts);
+            } catch (error) {
+                console.error("Lỗi khi tải sản phẩm:", error);
+                setError("Lỗi khi tải sản phẩm: " + error.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProductDetail();
+    }, []);
 
     // Kiểm tra xem items có phải là mảng và không rỗng không
-    if (!Array.isArray(items)) {
+    if (!Array.isArray(items) || items.length === 0) {
         return <div>Giỏ hàng không hợp lệ</div>;
     }
 
     const handleRemoveFromCart = (productId) => {
-        dispatch(removeFromCart({ product_id: productId }));
+        dispatch(removeFromCart({ product_id: productId, user_id: userId }));
     };
 
     const handleIncreaseCount = (productId) => {
-        dispatch(increaseCount({ product_id: productId }));
+        dispatch(increaseCount({ product_id: productId, user_id: userId }));
     };
 
     const handleDecreaseCount = (productId) => {
-        dispatch(decreaseCount({ product_id: productId }));
+        dispatch(decreaseCount({ product_id: productId, user_id: userId }));
     };
 
     const handleUpdateCount = (productId, count) => {
-        if (count < 1) return; // Không cho phép số lượng âm hoặc bằng 0
-        dispatch(updateCount({ product_id: productId, count }));
+        if (count < 1) return; // Không cho phép số lượng nhỏ hơn 1
+        dispatch(
+            updateCount({ product_id: productId, count, user_id: userId })
+        );
     };
+
     const calculateTotalPrice = () => {
-        return items.reduce(
+        return userItems.reduce(
             (total, item) => total + (item.price - item.discount) * item.count,
             0
         );
     };
-    const handleCheckout = () => {
-        navigate("/confirmation"); // Điều hướng tới trang thanh toán
+
+    const formatVND = (value) => {
+        return value.toLocaleString("vi-VN", {
+            style: "currency",
+            currency: "VND",
+        });
     };
+
+    const handleCheckout = () => {
+        navigate("/confirmation");
+    };
+
+    // Tính toán số lượng sản phẩm của user
+    const productCount = userItems.length;
     return (
         <div className="ctmsNd">
             <div>
@@ -72,58 +116,6 @@ export default function Checkout() {
                                     </div>
                                 </a>
                             </div>
-                            <div className="cart-page-searchbar">
-                                <form
-                                    role="search"
-                                    autoComplete="off"
-                                    className="shopee-searchbar"
-                                >
-                                    <div className="shopee-searchbar__main">
-                                        <div className="shopee-searchbar-input">
-                                            <input
-                                                aria-label="SALE QUỐC TẾ"
-                                                className="shopee-searchbar-input__input"
-                                                maxLength={128}
-                                                placeholder="SALE QUỐC TẾ"
-                                                autoComplete="off"
-                                                aria-autocomplete="list"
-                                                aria-controls="shopee-searchbar-listbox"
-                                                aria-expanded="false"
-                                                role="combobox"
-                                                defaultValue
-                                            />
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className="btn btn-solid-primary btn--s btn--inline shopee-searchbar__search-button"
-                                    >
-                                        <svg
-                                            height={19}
-                                            viewBox="0 0 19 19"
-                                            width={19}
-                                            className="shopee-svg-icon"
-                                        >
-                                            <g
-                                                fillRule="evenodd"
-                                                stroke="none"
-                                                strokeWidth={1}
-                                            >
-                                                <g transform="translate(-1016 -32)">
-                                                    <g>
-                                                        <g transform="translate(405 21)">
-                                                            <g transform="translate(611 11)">
-                                                                <path d="m8 16c4.418278 0 8-3.581722 8-8s-3.581722-8-8-8-8 3.581722-8 8 3.581722 8 8 8zm0-2c-3.3137085 0-6-2.6862915-6-6s2.6862915-6 6-6 6 2.6862915 6 6-2.6862915 6-6 6z" />
-                                                                <path d="m12.2972351 13.7114222 4.9799555 4.919354c.3929077.3881263 1.0260608.3842503 1.4141871-.0086574.3881263-.3929076.3842503-1.0260607-.0086574-1.414187l-4.9799554-4.919354c-.3929077-.3881263-1.0260608-.3842503-1.4141871.0086573-.3881263.3929077-.3842503 1.0260608.0086573 1.4141871z" />
-                                                            </g>
-                                                        </g>
-                                                    </g>
-                                                </g>
-                                            </g>
-                                        </svg>
-                                    </button>
-                                </form>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -140,134 +132,17 @@ export default function Checkout() {
                     <main className="GO0LDV" style={{ marginBottom: 0 }}>
                         <h2 className="a11y-hidden">Product List Section</h2>
                         <div className="Za1N64">
-                            <div className="SQGY8I">
-                                <label className="stardust-checkbox">
-                                    <input
-                                        className="stardust-checkbox__input"
-                                        type="checkbox"
-                                        aria-checked="false"
-                                        aria-disabled="false"
-                                        tabIndex={0}
-                                        role="checkbox"
-                                        aria-label="Click here to select all products"
-                                    />
-                                    <div className="stardust-checkbox__box" />
-                                </label>
-                            </div>
+                            <div className="SQGY8I"></div>
                             <div className="jX4z5R">Sản Phẩm</div>
                             <div className="jHcdvj">Đơn Giá</div>
                             <div className="o1QlcH">Số Lượng</div>
                             <div className="RT5qRd">Số Tiền</div>
                             <div className="TkKRaF">Thao Tác</div>
                         </div>
-                        {items.map((item) => (
-                            <section className="AuhAvM" key={item.id}>
-                                <h3 className="a11y-hidden">Shop Section</h3>
-                                <div className="JsC6Oq">
-                                    <div className="gzSvrb">
-                                        <div className="Ll5dDW">
-                                            <label className="stardust-checkbox">
-                                                <input
-                                                    className="stardust-checkbox__input"
-                                                    type="checkbox"
-                                                    aria-checked="false"
-                                                    tabIndex={0}
-                                                    role="checkbox"
-                                                    aria-label="Click here to select all products in VIiSH.vn"
-                                                />
-                                                <div className="stardust-checkbox__box" />
-                                            </label>
-                                        </div>
-                                        <a
-                                            className="QcqMX5"
-                                            href="/viish.vn?categoryId=100636&entryPoint=cart&itemId=29903616979"
-                                        >
-                                            <div className="Koi0Pw">
-                                                <svg
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    width={62}
-                                                    height={16}
-                                                    fill="none"
-                                                >
-                                                    <title>
-                                                        Preferred Seller
-                                                    </title>
-                                                    <path
-                                                        fill="#EE4D2D"
-                                                        fillRule="evenodd"
-                                                        d="M0 2C0 .9.9 0 2 0h58a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V2z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                    <g clipPath="url(#clip0)">
-                                                        <path
-                                                            fill="#fff"
-                                                            d="M8.7 13H7V8.7L5.6 6.3A828.9 828.9 0 004 4h2l2 3.3a1197.3 1197.3 0 002-3.3h1.6L8.7 8.7V13zm7.9-1.7h1.7c0 .3-.2.6-.5 1-.2.3-.5.5-1 .7l-.6.2h-.8c-.5 0-1 0-1.5-.2l-1-.8a4 4 0 01-.9-2.4c0-1 .3-1.9 1-2.6a3 3 0 012.4-1l.8.1a2.8 2.8 0 011.3.7l.4.6.3.8V10h-4.6l.2 1 .4.7.6.5.7.1c.4 0 .7 0 .9-.2l.2-.6v-.1zm0-2.3l-.1-1-.3-.3c0-.2-.1-.2-.2-.3l-.8-.2c-.3 0-.6.2-.9.5l-.3.5a4 4 0 00-.3.8h3zm-1.4-4.2l-.7.7h-1.4l1.5-2h1.1l1.5 2h-1.4l-.6-.7zm8.1 1.6H25V13h-1.7v-.5.1H23l-.7.5-.9.1-1-.1-.7-.4c-.3-.2-.4-.5-.6-.8l-.2-1.3V6.4h1.7v3.7c0 1 0 1.6.3 1.7.2.2.5.3.7.3h.4l.4-.2.3-.3.3-.5.2-1.4V6.4zM34.7 13a11.2 11.2 0 01-1.5.2 3.4 3.4 0 01-1.3-.2 2 2 0 01-.5-.3l-.3-.5-.2-.6V7.4h-1.2v-1h1.1V5h1.7v1.5h1.9v1h-2v3l.2 1.2.1.3.2.2h.3l.2.1c.2 0 .6 0 1.3-.3v1zm2.4 0h-1.7V3.5h1.7v3.4a3.7 3.7 0 01.2-.1 2.8 2.8 0 013.4 0l.4.4.2.7V13h-1.6V9.3 8.1l-.4-.6-.6-.2a1 1 0 00-.4.1 2 2 0 00-.4.2l-.3.3a3 3 0 00-.3.5l-.1.5-.1.9V13zm5.4-6.6H44V13h-1.6V6.4zm-.8-.9l1.8-2h1.8l-2.1 2h-1.5zm7.7 5.8H51v.5l-.4.5a2 2 0 01-.4.4l-.6.3-1.4.2c-.5 0-1 0-1.4-.2l-1-.7c-.3-.3-.5-.7-.6-1.2-.2-.4-.3-.9-.3-1.4 0-.5.1-1 .3-1.4a2.6 2.6 0 011.6-1.8c.4-.2.9-.3 1.4-.3.6 0 1 .1 1.5.3.4.1.7.4 1 .6l.2.5.1.5h-1.6c0-.3-.1-.5-.3-.6-.2-.2-.4-.3-.8-.3s-.8.2-1.2.6c-.3.4-.4 1-.4 2 0 .9.1 1.5.4 1.8.4.4.8.6 1.2.6h.5l.3-.2.2-.3v-.4zm4 1.7h-1.6V3.5h1.7v3.4a3.7 3.7 0 01.2-.1 2.8 2.8 0 013.4 0l.3.4.3.7V13h-1.6V9.3L56 8.1c-.1-.3-.2-.5-.4-.6l-.6-.2a1 1 0 00-.3.1 2 2 0 00-.4.2l-.3.3a3 3 0 00-.3.5l-.2.5V13z"
-                                                        />
-                                                    </g>
-                                                    <defs>
-                                                        <clipPath id="clip0">
-                                                            <path
-                                                                fill="#fff"
-                                                                d="M0 0h55v16H0z"
-                                                                transform="translate(4)"
-                                                            />
-                                                        </clipPath>
-                                                    </defs>
-                                                </svg>
-                                            </div>
-                                            <span
-                                                style={{
-                                                    marginLeft: 10,
-                                                    fontSize: "15px",
-                                                }}
-                                            >
-                                                VIiSH.vn
-                                            </span>
-                                        </a>
-                                        <button className="Eg4UEE">
-                                            <svg
-                                                viewBox="0 0 16 16"
-                                                className="shopee-svg-icon AxeMgG"
-                                            >
-                                                <g fillRule="evenodd">
-                                                    <path d="M15 4a1 1 0 01.993.883L16 5v9.932a.5.5 0 01-.82.385l-2.061-1.718-8.199.001a1 1 0 01-.98-.8l-.016-.117-.108-1.284 8.058.001a2 2 0 001.976-1.692l.018-.155L14.293 4H15zm-2.48-4a1 1 0 011 1l-.003.077-.646 8.4a1 1 0 01-.997.923l-8.994-.001-2.06 1.718a.5.5 0 01-.233.108l-.087.007a.5.5 0 01-.492-.41L0 11.732V1a1 1 0 011-1h11.52zM3.646 4.246a.5.5 0 000 .708c.305.304.694.526 1.146.682A4.936 4.936 0 006.4 5.9c.464 0 1.02-.062 1.608-.264.452-.156.841-.378 1.146-.682a.5.5 0 10-.708-.708c-.185.186-.445.335-.764.444a4.004 4.004 0 01-2.564 0c-.319-.11-.579-.258-.764-.444a.5.5 0 00-.708 0z" />
-                                                </g>
-                                            </svg>
-                                        </button>
-                                        <div className="cVlPY7" />
-                                    </div>
-                                </div>
+                        {userItems.map((item) => (
+                            <section className="AuhAvM" key={item.product_id}>
                                 <section className="RqMReY" role="list">
                                     <div className="_9G37m">
-                                        <div className="wsVAKH">
-                                            <span className="lKqYHD">
-                                                Combo khuyến mãi
-                                            </span>
-                                            <span>
-                                                Mua 2 sản phẩm giảm 1%, giảm đến
-                                                2%
-                                            </span>
-                                            <span className="Vm8iNU">
-                                                <a href="/bundle-deal/212953253609716?from=cart">
-                                                    Thêm
-                                                    <svg
-                                                        viewBox="0 0 12 12"
-                                                        fill="none"
-                                                        width={12}
-                                                        height={12}
-                                                        color="#ee4d2d"
-                                                        className="MuMxsb"
-                                                    >
-                                                        <path
-                                                            fillRule="evenodd"
-                                                            clipRule="evenodd"
-                                                            d="M9.293 6L4.146.854l.708-.708L10 5.293a1 1 0 010 1.414l-5.146 5.147-.708-.707L9.293 6z"
-                                                            fill="currentColor"
-                                                        />
-                                                    </svg>
-                                                </a>
-                                            </span>
-                                        </div>
                                         <div
                                             className="lDiGJB kEMRam"
                                             role="listitem"
@@ -276,48 +151,33 @@ export default function Checkout() {
                                                 cart_accessibility_item
                                             </h4>
                                             <div className="f1bSN6">
-                                                <div className="Xp4RLg">
-                                                    <label className="stardust-checkbox">
-                                                        <input
-                                                            className="stardust-checkbox__input"
-                                                            type="checkbox"
-                                                            aria-checked="false"
-                                                            aria-disabled="false"
-                                                            tabIndex={0}
-                                                            role="checkbox"
-                                                            aria-label="Click here to select this product"
-                                                        />
-                                                        <div className="stardust-checkbox__box" />
-                                                    </label>
-                                                </div>
                                                 <div className="brf29Y">
-                                                    <div className="bzhajK">
+                                                    <div
+                                                        className="bzhajK"
+                                                        style={{
+                                                            marginLeft: "20px",
+                                                        }}
+                                                    >
                                                         <a
-                                                            title="Người Nổi Tiếng Mặt Tất Cả Mặt nạ 3D Mặt nạ Toàn Mặt nạ Mô Phỏng Mũ Đội Đầu Cho Người Hâm Mộ Ngộ nghĩnh Cosplay Mặt nạ 3D Balaclava"
-                                                            href="/Người-Nổi-Tiếng-Mặt-Tất-Cả-Mặt-nạ-3D-Mặt-nạ-Toàn-Mặt-nạ-Mô-Phỏng-Mũ-Đội-Đầu-Cho-Người-Hâm-Mộ-Ngộ-nghĩnh-Cosplay-Mặt-nạ-3D-Balaclava-i.1063500851.29903616979?xptdk=232fe576-f62e-444a-b80f-0d8385e64b6e"
+                                                            title=""
+                                                            href={`product/${item.product_id}`}
                                                         >
                                                             <img
                                                                 className="jFEiVQ"
                                                                 src={`http://localhost:8000/images/products/${item.image}`}
-                                                                alt="product image"
+                                                                alt="productimage"
                                                             />
                                                         </a>
                                                         <div className="Ou_0WX">
                                                             <a
                                                                 className="c54pg1"
-                                                                title="Người Nổi Tiếng Mặt Tất Cả Mặt nạ 3D Mặt nạ Toàn Mặt nạ Mô Phỏng Mũ Đội Đầu Cho Người Hâm Mộ Ngộ nghĩnh Cosplay Mặt nạ 3D Balaclava"
-                                                                href="/Người-Nổi-Tiếng-Mặt-Tất-Cả-Mặt-nạ-3D-Mặt-nạ-Toàn-Mặt-nạ-Mô-Phỏng-Mũ-Đội-Đầu-Cho-Người-Hâm-Mộ-Ngộ-nghĩnh-Cosplay-Mặt-nạ-3D-Balaclava-i.1063500851.29903616979?xptdk=232fe576-f62e-444a-b80f-0d8385e64b6e"
+                                                                title=""
+                                                                href={`product/${item.product_id}`}
                                                             >
                                                                 {
                                                                     item.product_name
                                                                 }
                                                             </a>
-                                                            <div className="j_w5yD">
-                                                                <span className="HrzuLB XyrmVS">
-                                                                    Đổi ý miễn
-                                                                    phí 15 ngày
-                                                                </span>
-                                                            </div>
                                                             <img
                                                                 className="Kv1AvK"
                                                                 src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxhaq518hlg993"
@@ -327,35 +187,19 @@ export default function Checkout() {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="eHDC_o">
-                                                    <div className="qNRZqG">
-                                                        <button
-                                                            className="mM4TZ8"
-                                                            role="button"
-                                                            tabIndex={0}
-                                                        >
-                                                            <div className="iIg1CN">
-                                                                Phân loại hàng:
-                                                                <div className="E33rwr" />
-                                                            </div>
-                                                            <div className="dDPSp3">
-                                                                Kanye
-                                                            </div>
-                                                        </button>
-                                                        <div />
-                                                    </div>
-                                                </div>
+                                                <div className="eHDC_o"></div>
                                                 <div className="gJyWia">
                                                     <div>
                                                         <span className="vjkBXu tnTSPU">
-                                                            {item.price}đ
+                                                            {formatVND(
+                                                                item.price
+                                                            )}
                                                         </span>
                                                         <span className="vjkBXu">
-                                                            {(
+                                                            {formatVND(
                                                                 item.price -
-                                                                item.discount
-                                                            ).toFixed(2)}
-                                                            đ
+                                                                    item.discount
+                                                            )}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -387,13 +231,14 @@ export default function Checkout() {
                                                             aria-valuenow={
                                                                 item.count
                                                             }
-                                                            value={item.count} // Thay đổi từ defaultValue thành value
+                                                            value={item.count}
                                                             onChange={(e) =>
                                                                 handleUpdateCount(
                                                                     item.product_id,
                                                                     parseInt(
                                                                         e.target
-                                                                            .value
+                                                                            .value,
+                                                                        10
                                                                     )
                                                                 )
                                                             }
@@ -421,15 +266,11 @@ export default function Checkout() {
                                                 </div>
                                                 <div className="HRvCAv">
                                                     <span>
-                                                        {(
+                                                        {formatVND(
                                                             (item.price -
                                                                 item.discount) *
-                                                            item.count
-                                                        ).toFixed(2)}
-                                                        đ
-                                                    </span>
-                                                    <span className="a11y-hidden">
-                                                        Total price: ₫27.642
+                                                                item.count
+                                                        )}
                                                     </span>
                                                 </div>
                                                 <div className="bRSn43 TvSDdG">
@@ -443,313 +284,27 @@ export default function Checkout() {
                                                     >
                                                         Xóa
                                                     </button>
-                                                    <div className="J8cCGR">
-                                                        <button className="shopee-button-no-outline slfWNx">
-                                                            <span className="wZrjgF">
-                                                                Tìm sản phẩm
-                                                                tương tự
-                                                            </span>
-                                                            <svg
-                                                                enableBackground="new 0 0 15 15"
-                                                                viewBox="0 0 15 15"
-                                                                x={0}
-                                                                y={0}
-                                                                className="shopee-svg-icon f3N1Rf icon-down-arrow-filled"
-                                                            >
-                                                                <path d="m6.5 12.9-6-7.9s-1.4-1.5.5-1.5h13s1.8 0 .6 1.5l-6 7.9c-.1 0-.9 1.3-2.1 0z" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="t89ViJ" />
                                     </div>
                                 </section>
-                                <div className="ArX7yj">
-                                    <svg
-                                        fill="none"
-                                        viewBox="0 -2 23 22"
-                                        className="shopee-svg-icon lGPe96 icon-voucher-line"
-                                    >
-                                        <g filter="url(#voucher-filter0_d)">
-                                            <mask id="a" fill="#fff">
-                                                <path
-                                                    fillRule="evenodd"
-                                                    clipRule="evenodd"
-                                                    d="M1 2h18v2.32a1.5 1.5 0 000 2.75v.65a1.5 1.5 0 000 2.75v.65a1.5 1.5 0 000 2.75V16H1v-2.12a1.5 1.5 0 000-2.75v-.65a1.5 1.5 0 000-2.75v-.65a1.5 1.5 0 000-2.75V2z"
-                                                />
-                                            </mask>
-                                            <path
-                                                d="M19 2h1V1h-1v1zM1 2V1H0v1h1zm18 2.32l.4.92.6-.26v-.66h-1zm0 2.75h1v-.65l-.6-.26-.4.91zm0 .65l.4.92.6-.26v-.66h-1zm0 2.75h1v-.65l-.6-.26-.4.91zm0 .65l.4.92.6-.26v-.66h-1zm0 2.75h1v-.65l-.6-.26-.4.91zM19 16v1h1v-1h-1zM1 16H0v1h1v-1zm0-2.12l-.4-.92-.6.26v.66h1zm0-2.75H0v.65l.6.26.4-.91zm0-.65l-.4-.92-.6.26v.66h1zm0-2.75H0v.65l.6.26.4-.91zm0-.65l-.4-.92-.6.26v.66h1zm0-2.75H0v.65l.6.26.4-.91zM19 1H1v2h18V1zm1 3.32V2h-2v2.32h2zm-.9 1.38c0-.2.12-.38.3-.46l-.8-1.83a2.5 2.5 0 00-1.5 2.29h2zm.3.46a.5.5 0 01-.3-.46h-2c0 1.03.62 1.9 1.5 2.3l.8-1.84zm.6 1.56v-.65h-2v.65h2zm-.9 1.38c0-.2.12-.38.3-.46l-.8-1.83a2.5 2.5 0 00-1.5 2.29h2zm.3.46a.5.5 0 01-.3-.46h-2c0 1.03.62 1.9 1.5 2.3l.8-1.84zm.6 1.56v-.65h-2v.65h2zm-.9 1.38c0-.2.12-.38.3-.46l-.8-1.83a2.5 2.5 0 00-1.5 2.29h2zm.3.46a.5.5 0 01-.3-.46h-2c0 1.03.62 1.9 1.5 2.3l.8-1.84zM20 16v-2.13h-2V16h2zM1 17h18v-2H1v2zm-1-3.12V16h2v-2.12H0zm1.4.91a2.5 2.5 0 001.5-2.29h-2a.5.5 0 01-.3.46l.8 1.83zm1.5-2.29a2.5 2.5 0 00-1.5-2.3l-.8 1.84c.18.08.3.26.3.46h2zM0 10.48v.65h2v-.65H0zM.9 9.1a.5.5 0 01-.3.46l.8 1.83A2.5 2.5 0 002.9 9.1h-2zm-.3-.46c.18.08.3.26.3.46h2a2.5 2.5 0 00-1.5-2.3L.6 8.65zM0 7.08v.65h2v-.65H0zM.9 5.7a.5.5 0 01-.3.46l.8 1.83A2.5 2.5 0 002.9 5.7h-2zm-.3-.46c.18.08.3.26.3.46h2a2.5 2.5 0 00-1.5-2.3L.6 5.25zM0 2v2.33h2V2H0z"
-                                                mask="url(#a)"
-                                            />
-                                        </g>
-                                        <path
-                                            clipRule="evenodd"
-                                            d="M6.49 14.18h.86v-1.6h-.86v1.6zM6.49 11.18h.86v-1.6h-.86v1.6zM6.49 8.18h.86v-1.6h-.86v1.6zM6.49 5.18h.86v-1.6h-.86v1.6z"
-                                        />
-                                        <defs>
-                                            <filter
-                                                id="voucher-filter0_d"
-                                                x={0}
-                                                y={1}
-                                                width={20}
-                                                height={16}
-                                                filterUnits="userSpaceOnUse"
-                                                colorInterpolationFilters="sRGB"
-                                            >
-                                                <feFlood
-                                                    floodOpacity={0}
-                                                    result="BackgroundImageFix"
-                                                />
-                                                <feColorMatrix
-                                                    in="SourceAlpha"
-                                                    values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                                                />
-                                                <feOffset />
-                                                <feGaussianBlur stdDeviation=".5" />
-                                                <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.09 0" />
-                                                <feBlend
-                                                    in2="BackgroundImageFix"
-                                                    result="effect1_dropShadow"
-                                                />
-                                                <feBlend
-                                                    in="SourceGraphic"
-                                                    in2="effect1_dropShadow"
-                                                    result="shape"
-                                                />
-                                            </filter>
-                                        </defs>
-                                    </svg>
-                                    <div className="N9nCmB">
-                                        <div className="nKTIzW">
-                                            Voucher giảm đến ₫4k
-                                        </div>
-                                        <div className="JC72Dv">
-                                            <button className="qe2YoR">
-                                                Xem thêm voucher
-                                            </button>
-                                            <div
-                                                style={{
-                                                    display: "contents",
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="_RPX38">
-                                    <img
-                                        width={24}
-                                        height={20}
-                                        src="https://deo.shopeemobile.com/shopee/shopee-pcmall-live-sg/cart/d9e992985b18d96aab90.png"
-                                        alt="fs-icon"
-                                    />
-                                    <div className="Cmb29y">
-                                        Giảm ₫300.000 phí vận chuyển đơn tối
-                                        thiểu ₫0; Giảm ₫500.000 phí vận chuyển
-                                        đơn tối thiểu ₫500.000
-                                    </div>
-                                    <div
-                                        className="shopee-drawer"
-                                        id="pc-drawer-id-0"
-                                        tabIndex={0}
-                                    >
-                                        <span
-                                            className="Eb1Wor"
-                                            aria-describedby="1063500851_shipping_discount"
-                                        >
-                                            {" "}
-                                            Tìm hiểu thêm{" "}
-                                        </span>
-                                    </div>
-                                </div>
                             </section>
                         ))}
                     </main>
                     <section className="yn6AIc">
-                        <h2 className="a11y-hidden">
-                            cart_accessibility_footer
-                        </h2>
-                        <div className="CzLyKQ lRHCcS">
-                            <h3 className="a11y-hidden">
-                                cart_accessibility_footer_voucher_row
-                            </h3>
-                            <svg
-                                fill="none"
-                                viewBox="0 -2 23 22"
-                                className="shopee-svg-icon icon-voucher-line"
-                            >
-                                <g filter="url(#voucher-filter0_d)">
-                                    <mask id="a" fill="#fff">
-                                        <path
-                                            fillRule="evenodd"
-                                            clipRule="evenodd"
-                                            d="M1 2h18v2.32a1.5 1.5 0 000 2.75v.65a1.5 1.5 0 000 2.75v.65a1.5 1.5 0 000 2.75V16H1v-2.12a1.5 1.5 0 000-2.75v-.65a1.5 1.5 0 000-2.75v-.65a1.5 1.5 0 000-2.75V2z"
-                                        />
-                                    </mask>
-                                    <path
-                                        d="M19 2h1V1h-1v1zM1 2V1H0v1h1zm18 2.32l.4.92.6-.26v-.66h-1zm0 2.75h1v-.65l-.6-.26-.4.91zm0 .65l.4.92.6-.26v-.66h-1zm0 2.75h1v-.65l-.6-.26-.4.91zm0 .65l.4.92.6-.26v-.66h-1zm0 2.75h1v-.65l-.6-.26-.4.91zM19 16v1h1v-1h-1zM1 16H0v1h1v-1zm0-2.12l-.4-.92-.6.26v.66h1zm0-2.75H0v.65l.6.26.4-.91zm0-.65l-.4-.92-.6.26v.66h1zm0-2.75H0v.65l.6.26.4-.91zm0-.65l-.4-.92-.6.26v.66h1zm0-2.75H0v.65l.6.26.4-.91zM19 1H1v2h18V1zm1 3.32V2h-2v2.32h2zm-.9 1.38c0-.2.12-.38.3-.46l-.8-1.83a2.5 2.5 0 00-1.5 2.29h2zm.3.46a.5.5 0 01-.3-.46h-2c0 1.03.62 1.9 1.5 2.3l.8-1.84zm.6 1.56v-.65h-2v.65h2zm-.9 1.38c0-.2.12-.38.3-.46l-.8-1.83a2.5 2.5 0 00-1.5 2.29h2zm.3.46a.5.5 0 01-.3-.46h-2c0 1.03.62 1.9 1.5 2.3l.8-1.84zm.6 1.56v-.65h-2v.65h2zm-.9 1.38c0-.2.12-.38.3-.46l-.8-1.83a2.5 2.5 0 00-1.5 2.29h2zm.3.46a.5.5 0 01-.3-.46h-2c0 1.03.62 1.9 1.5 2.3l.8-1.84zM20 16v-2.13h-2V16h2zM1 17h18v-2H1v2zm-1-3.12V16h2v-2.12H0zm1.4.91a2.5 2.5 0 001.5-2.29h-2a.5.5 0 01-.3.46l.8 1.83zm1.5-2.29a2.5 2.5 0 00-1.5-2.3l-.8 1.84c.18.08.3.26.3.46h2zM0 10.48v.65h2v-.65H0zM.9 9.1a.5.5 0 01-.3.46l.8 1.83A2.5 2.5 0 002.9 9.1h-2zm-.3-.46c.18.08.3.26.3.46h2a2.5 2.5 0 00-1.5-2.3L.6 8.65zM0 7.08v.65h2v-.65H0zM.9 5.7a.5.5 0 01-.3.46l.8 1.83A2.5 2.5 0 002.9 5.7h-2zm-.3-.46c.18.08.3.26.3.46h2a2.5 2.5 0 00-1.5-2.3L.6 5.25zM0 2v2.33h2V2H0z"
-                                        mask="url(#a)"
-                                    />
-                                </g>
-                                <path
-                                    clipRule="evenodd"
-                                    d="M6.49 14.18h.86v-1.6h-.86v1.6zM6.49 11.18h.86v-1.6h-.86v1.6zM6.49 8.18h.86v-1.6h-.86v1.6zM6.49 5.18h.86v-1.6h-.86v1.6z"
-                                />
-                                <defs>
-                                    <filter
-                                        id="voucher-filter0_d"
-                                        x={0}
-                                        y={1}
-                                        width={20}
-                                        height={16}
-                                        filterUnits="userSpaceOnUse"
-                                        colorInterpolationFilters="sRGB"
-                                    >
-                                        <feFlood
-                                            floodOpacity={0}
-                                            result="BackgroundImageFix"
-                                        />
-                                        <feColorMatrix
-                                            in="SourceAlpha"
-                                            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                                        />
-                                        <feOffset />
-                                        <feGaussianBlur stdDeviation=".5" />
-                                        <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.09 0" />
-                                        <feBlend
-                                            in2="BackgroundImageFix"
-                                            result="effect1_dropShadow"
-                                        />
-                                        <feBlend
-                                            in="SourceGraphic"
-                                            in2="effect1_dropShadow"
-                                            result="shape"
-                                        />
-                                    </filter>
-                                </defs>
-                            </svg>
-                            <div className="FGs2jP">Shopee Voucher</div>
-                            <div className="oI3JPG" />
-                            <button className="nOoMrG">
-                                Chọn hoặc nhập mã
-                            </button>
-                        </div>
-                        <div className="Z6oxZ3 iDgxib" />
-                        <h3 className="a11y-hidden">
-                            cart_accessibility_footer_coin_row
-                        </h3>
-                        <div className="WuLbM9 BjTxuU">
-                            <label className="stardust-checkbox stardust-checkbox--disabled">
-                                <input
-                                    className="stardust-checkbox__input"
-                                    type="checkbox"
-                                    aria-checked="false"
-                                    aria-disabled="true"
-                                    tabIndex={0}
-                                    role="checkbox"
-                                    aria-label="Coins Balance 0"
-                                />
-                                <div className="stardust-checkbox__box" />
-                            </label>
-                        </div>
-                        <div className="WuLbM9 ificCM dOZlXw T5n8VV">
-                            <svg
-                                fill="none"
-                                viewBox="0 0 18 18"
-                                className="shopee-svg-icon Iz070x icon-coin-line"
-                            >
-                                <path
-                                    stroke="#FFA600"
-                                    strokeWidth="1.3"
-                                    d="M17.35 9A8.35 8.35 0 11.65 9a8.35 8.35 0 0116.7 0z"
-                                />
-                                <path
-                                    fill="#FFA600"
-                                    fillRule="evenodd"
-                                    stroke="#FFA600"
-                                    strokeWidth=".2"
-                                    d="M6.86 4.723c-.683.576-.998 1.627-.75 2.464.215.725.85 1.258 1.522 1.608.37.193.77.355 1.177.463.1.027.2.051.3.08.098.03.196.062.294.096.06.021.121.044.182.067.017.006.107.041.04.014-.07-.028.071.03.087.037.286.124.56.27.82.44.114.076.045.024.151.111a2.942 2.942 0 01.322.303c.087.093.046.042.114.146.18.275.245.478.235.8-.01.328-.14.659-.325.867-.47.53-1.232.73-1.934.696a4.727 4.727 0 01-1.487-.307c-.45-.182-.852-.462-1.242-.737-.25-.176-.643-.04-.788.197-.17.279-.044.574.207.75.753.532 1.539.946 2.474 1.098.885.144 1.731.124 2.563-.224.78-.326 1.416-.966 1.607-1.772.198-.838-.023-1.644-.61-2.29-.683-.753-1.722-1.17-2.706-1.43a4.563 4.563 0 01-.543-.183c.122.048-.044-.02-.078-.035a4.77 4.77 0 01-.422-.212c-.594-.338-.955-.722-.872-1.369.105-.816.757-1.221 1.555-1.28.808-.06 1.648.135 2.297.554.614.398 1.19-.553.58-.947-1.33-.86-3.504-1.074-4.77-.005z"
-                                    clipRule="evenodd"
-                                />
-                            </svg>
-                            <div className="BBQR6_">Shopee Xu</div>
-                            <div className="PkMsif">Bạn chưa chọn sản phẩm</div>
-                            <div
-                                className="stardust-popover Prdzh0"
-                                id="stardust-popover0"
-                                tabIndex={0}
-                            >
-                                <div
-                                    role="button"
-                                    className="stardust-popover__target"
-                                >
-                                    <div>
-                                        <svg
-                                            enableBackground="new 0 0 15 15"
-                                            viewBox="0 0 15 15"
-                                            x={0}
-                                            y={0}
-                                            className="shopee-svg-icon eXBxkv icon-help"
-                                        >
-                                            <g>
-                                                <circle
-                                                    cx="7.5"
-                                                    cy="7.5"
-                                                    fill="none"
-                                                    r="6.5"
-                                                    strokeMiterlimit={10}
-                                                />
-                                                <path
-                                                    d="m5.3 5.3c.1-.3.3-.6.5-.8s.4-.4.7-.5.6-.2 1-.2c.3 0 .6 0 .9.1s.5.2.7.4.4.4.5.7.2.6.2.9c0 .2 0 .4-.1.6s-.1.3-.2.5c-.1.1-.2.2-.3.3-.1.2-.2.3-.4.4-.1.1-.2.2-.3.3s-.2.2-.3.4c-.1.1-.1.2-.2.4s-.1.3-.1.5v.4h-.9v-.5c0-.3.1-.6.2-.8s.2-.4.3-.5c.2-.2.3-.3.5-.5.1-.1.3-.3.4-.4.1-.2.2-.3.3-.5s.1-.4.1-.7c0-.4-.2-.7-.4-.9s-.5-.3-.9-.3c-.3 0-.5 0-.7.1-.1.1-.3.2-.4.4-.1.1-.2.3-.3.5 0 .2-.1.5-.1.7h-.9c0-.3.1-.7.2-1zm2.8 5.1v1.2h-1.2v-1.2z"
-                                                    stroke="none"
-                                                />
-                                            </g>
-                                        </svg>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="WuLbM9 fDdBqs IR54W9">-₫0</div>
-                        <div className="Z6oxZ3 MOZmZ1" />
                         <div className="WhvsrO Kk1Mak">
-                            <h3 className="a11y-hidden">
-                                cart_accessibility_footer_checkout_row
-                            </h3>
-                            <div className="u4pma8">
-                                <label className="stardust-checkbox">
-                                    <input
-                                        className="stardust-checkbox__input"
-                                        type="checkbox"
-                                        aria-checked="false"
-                                        aria-disabled="false"
-                                        tabIndex={0}
-                                        role="checkbox"
-                                        aria-label="Click here to select all products"
-                                    />
-                                    <div className="stardust-checkbox__box" />
-                                </label>
-                            </div>
-                            <button className="v5CBXg clear-btn-style">
-                                Chọn Tất Cả (1)
-                            </button>
-                            <button className="clear-btn-style GQ7Hga">
-                                Xóa
-                            </button>
-                            <div className />
-                            <button className="clear-btn-style QmkEaL">
-                                Lưu vào mục Đã thích
-                            </button>
                             <div className="iqpIui" />
                             <div className="BV92a3" role="region">
                                 <div className="DScaTh">
                                     <div className="znJ7TE">
                                         <div className="CoYXUV">
-                                            Tổng thanh toán (0 Sản phẩm):
+                                            Tổng thanh toán ({productCount} Sản
+                                            phẩm):
                                         </div>
                                         <div className="mketV9">
-                                            ₫{calculateTotalPrice()}
+                                            {formatVND(calculateTotalPrice())}
                                         </div>
                                     </div>
                                 </div>
@@ -772,1361 +327,36 @@ export default function Checkout() {
                                     <div className="shopee-header-section__header__title">
                                         <div>Có thể bạn cũng thích</div>
                                     </div>
-                                    <a
-                                        className="shopee-header-section__header-link"
-                                        tabIndex={-1}
-                                        href="/cart/recommend"
-                                    >
-                                        <button className="shopee-button-no-outline">
-                                            Xem tất cả&nbsp;
-                                            <svg
-                                                enableBackground="new 0 0 11 11"
-                                                viewBox="0 0 11 11"
-                                                x={0}
-                                                y={0}
-                                                className="shopee-svg-icon icon-arrow-right"
-                                            >
-                                                <path d="m2.5 11c .1 0 .2 0 .3-.1l6-5c .1-.1.2-.3.2-.4s-.1-.3-.2-.4l-6-5c-.2-.2-.5-.1-.7.1s-.1.5.1.7l5.5 4.6-5.5 4.6c-.2.2-.2.5-.1.7.1.1.3.2.4.2z" />
-                                            </svg>
-                                        </button>
-                                    </a>
                                 </div>
                                 <div className="shopee-header-section__content" />
                             </div>
-                            <div className="QLiXDZ row">
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Bút-Bi-Nước-Mực-Gel-Đen-Xanh-Đỏ-Khô-Nhanh-Ngòi-0.5mm-Mực-Đều-Nét-Chữ-Đẹp-Đủ-Màu-Trạm-Sinh-Viên.-(-BBN-)-i.1142636437.25253508799?sp_atk=42e12b42-e04e-4116-b25c-a130a0f7a743&xptdk=42e12b42-e04e-4116-b25c-a130a0f7a743"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lp9kqhnsqtln27_tn.webp"
-                                                        alt="Bút Bi Nước Mực Gel Đen Xanh Đỏ Khô Nhanh Ngòi 0.5mm, Mực Đều, Nét Chữ Đẹp Đủ Màu - Trạm Sinh Viên. ( BBN )"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div className="text-shopee-primary font-medium bg-shopee-pink py-0.5 px-1 text-xs/sp14 absolute top-0 right-0 z-30">
-                                                        <span aria-label="-50%" />
-                                                        -50%
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 right-0 z-30 flex pr-1 pb-1"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="w-5 h-5 stroke-none"
-                                                            style={{
-                                                                backgroundImage:
-                                                                    'url("https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/43bd6a890841685e2fea.svg")',
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        Bút Bi Nước Mực Gel Đen
-                                                        Xanh Đỏ Khô Nhanh Ngòi
-                                                        0.5mm, Mực Đều, Nét Chữ
-                                                        Đẹp Đủ Màu - Trạm Sinh
-                                                        Viên. ( BBN )
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 max-w-[60%] flex-shrink-0"
-                                                            style={{
-                                                                color: "rgb(238, 77, 45)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                Rẻ Vô Địch
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                        <div className="pointer-events-none text-ellipsis overflow-hidden h-4 flex-grow-0 flex-shrink-1 flex flex-row justify-start items-stretch">
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="flex-none h-full"
-                                                            />
-                                                            <div className="truncate bg-shopee-voucher-yellow text-white leading-4 text-sp10">
-                                                                Giảm ₫1k
-                                                            </div>
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="rotate-180 flex-none h-full"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    1.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 282,4k
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
+                            <div style={{ display: "contents" }}>
+                                <div className="grid wide">
+                                    <div className="QLiXDZ row sm-gutter">
+                                        {suggestedProducts.length > 0 ? (
+                                            suggestedProducts.map((item) => (
+                                                <Product
+                                                    key={item.id}
+                                                    product={item}
+                                                />
+                                            ))
+                                        ) : (
+                                            <div>Không có sản phẩm gợi ý</div>
+                                        )}
                                     </div>
-                                </div>
-                                <div className="N_YeYe">
                                     <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
+                                        className="fppaNP"
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            padding: "10px",
+                                        }}
                                     >
                                         <a
-                                            className="contents"
-                                            href="/Bút-mực-nước-bút-bi-văn-phòng-ngòi-viết-0.5mm-đều-nét-chữ-đủ-màu-NAMSHOP-i.713614081.25313455175?sp_atk=7877abe7-212d-46f0-b9ce-c44fcb6f3d41&xptdk=7877abe7-212d-46f0-b9ce-c44fcb6f3d41"
+                                            href="/daily_discover"
+                                            className="custom-button"
                                         >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lryp13mzbvrt2e_tn.webp"
-                                                        alt="Bút mực nước-bút bi văn phòng ngòi viết 0.5mm đều nét chữ đủ màu NAMSHOP"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 right-0 z-30 flex pr-1 pb-1"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="w-5 h-5 stroke-none"
-                                                            style={{
-                                                                backgroundImage:
-                                                                    'url("https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/43bd6a890841685e2fea.svg")',
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        <img
-                                                            src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/ef5ae19bc5ed8a733a70.png"
-                                                            alt="flag-label"
-                                                            className="mr-0.5 mb-0.5 inline-block h-[14px]"
-                                                        />
-                                                        Bút mực nước-bút bi văn
-                                                        phòng ngòi viết 0.5mm
-                                                        đều nét chữ đủ màu
-                                                        NAMSHOP
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 max-w-[60%] flex-shrink-0"
-                                                            style={{
-                                                                color: "rgb(238, 77, 45)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                Rẻ Vô Địch
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                        <div className="pointer-events-none text-ellipsis overflow-hidden h-4 flex-grow-0 flex-shrink-1 flex flex-row justify-start items-stretch">
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="flex-none h-full"
-                                                            />
-                                                            <div className="truncate bg-shopee-voucher-yellow text-white leading-4 text-sp10">
-                                                                Giảm ₫1k
-                                                            </div>
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="rotate-180 flex-none h-full"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    1.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 99,4k
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Loa-bluetooth-đồng-hồ-báo-thức-Windoo-WD47-màn-hình-gương-loa-bluetooth-kết-hợp-đồng-hồ-đa-chức-năng-i.452249817.23357190012?sp_atk=cb30b8cc-f69d-4436-a8ea-e7e89eca8999&xptdk=cb30b8cc-f69d-4436-a8ea-e7e89eca8999"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lmlv6zwjnp3z9e_tn.webp"
-                                                        alt="Loa bluetooth đồng hồ báo thức Windoo WD47 màn hình gương, loa bluetooth kết hợp đồng hồ đa chức năng"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        <img
-                                                            src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/f7b342784ff25c9e4403.png"
-                                                            alt="flag-label"
-                                                            className="mr-0.5 mb-0.5 inline-block h-[14px]"
-                                                        />
-                                                        Loa bluetooth đồng hồ
-                                                        báo thức Windoo WD47 màn
-                                                        hình gương, loa
-                                                        bluetooth kết hợp đồng
-                                                        hồ đa chức năng
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div className="pointer-events-none text-ellipsis overflow-hidden h-4 max-w-[60%] flex-shrink-0 flex flex-row justify-start items-stretch">
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="flex-none h-full"
-                                                            />
-                                                            <div className="truncate bg-shopee-voucher-yellow text-white leading-4 text-sp10">
-                                                                Giảm ₫500k
-                                                            </div>
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="rotate-180 flex-none h-full"
-                                                            />
-                                                        </div>
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 flex-grow-0 flex-shrink-1"
-                                                            style={{
-                                                                color: "rgb(246, 145, 19)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                #ShopXuHuong
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    15.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Tai-nghe-Bluetooth-KY8-trong-suốt-6-màu-Màn-Hình-Kỹ-Thuật-Số-Giảm-Tiếng-Ồn-Tích-Hợp-mic-i.186608798.24870068906?sp_atk=b610a338-1896-4ec6-8a2d-96f8b024f7fd&xptdk=b610a338-1896-4ec6-8a2d-96f8b024f7fd"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lt4p5em9h138fa_tn.webp"
-                                                        alt="Tai nghe Bluetooth KY8 trong suốt 6 màu ,Màn Hình Kỹ Thuật Số Giảm Tiếng Ồn Tích Hợp mic"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div className="text-shopee-primary font-medium bg-shopee-pink py-0.5 px-1 text-xs/sp14 absolute top-0 right-0 z-30">
-                                                        <span aria-label="-55%" />
-                                                        -55%
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 right-0 z-30 flex pr-1 pb-1"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="w-5 h-5 stroke-none"
-                                                            style={{
-                                                                backgroundImage:
-                                                                    'url("https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/43bd6a890841685e2fea.svg")',
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        <img
-                                                            src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/ef5ae19bc5ed8a733a70.png"
-                                                            alt="flag-label"
-                                                            className="mr-0.5 mb-0.5 inline-block h-[14px]"
-                                                        />
-                                                        Tai nghe Bluetooth KY8
-                                                        trong suốt 6 màu ,Màn
-                                                        Hình Kỹ Thuật Số Giảm
-                                                        Tiếng Ồn Tích Hợp mic
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 max-w-full"
-                                                            style={{
-                                                                color: "rgb(238, 77, 45)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                Rẻ Vô Địch
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    9.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 1,6k
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Bút-Gel-Bút-Bi-Nước-Mực-Gel-Đen-Xanh-Đỏ-Khô-Nhanh-Ngòi-0.5mm-Mực-Đều-Nét-Chữ-Đẹp-Đủ-Màu-MiGA-i.1077714691.23458948245?sp_atk=cd050afc-2d6a-4e89-8115-e1e94d71c966&xptdk=cd050afc-2d6a-4e89-8115-e1e94d71c966"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/vn-11134211-7r98o-lutiwuvo4geq3c_tn.webp"
-                                                        alt="Bút Gel  Bút Bi Nước Mực Gel Đen Xanh Đỏ Khô Nhanh Ngòi 0.5mm, Mực Đều, Nét Chữ Đẹp Đủ Màu MiGA"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div className="text-shopee-primary font-medium bg-shopee-pink py-0.5 px-1 text-xs/sp14 absolute top-0 right-0 z-30">
-                                                        <span aria-label="-40%" />
-                                                        -40%
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        Bút Gel Bút Bi Nước Mực
-                                                        Gel Đen Xanh Đỏ Khô
-                                                        Nhanh Ngòi 0.5mm, Mực
-                                                        Đều, Nét Chữ Đẹp Đủ Màu
-                                                        MiGA
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 max-w-[60%] flex-shrink-0"
-                                                            style={{
-                                                                color: "rgb(238, 77, 45)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                Rẻ Vô Địch
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                        <div className="pointer-events-none text-ellipsis overflow-hidden h-4 flex-grow-0 flex-shrink-1 flex flex-row justify-start items-stretch">
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="flex-none h-full"
-                                                            />
-                                                            <div className="truncate bg-shopee-voucher-yellow text-white leading-4 text-sp10">
-                                                                Giảm ₫1k
-                                                            </div>
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="rotate-180 flex-none h-full"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    1.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 70k
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Bút-Gel-Bút-Bi-Nước-Mực-Gel-Đen-Xanh-Đỏ-Khô-Nhanh-Ngòi-0.5mm-Mực-Đều-Nét-Chữ-Đẹp-Đủ-Màu-MiGA-i.324368286.25373785770?sp_atk=2deac8f4-03b7-4c4d-b0a8-a69a3212c630&xptdk=2deac8f4-03b7-4c4d-b0a8-a69a3212c630"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/vn-11134211-7r98o-lutiwuvdv1gl14_tn.webp"
-                                                        alt="Bút Gel Bút Bi Nước Mực Gel Đen Xanh Đỏ Khô Nhanh Ngòi 0.5mm, Mực Đều, Nét Chữ Đẹp Đủ Màu MiGA"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div className="text-shopee-primary font-medium bg-shopee-pink py-0.5 px-1 text-xs/sp14 absolute top-0 right-0 z-30">
-                                                        <span aria-label="-40%" />
-                                                        -40%
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        Bút Gel Bút Bi Nước Mực
-                                                        Gel Đen Xanh Đỏ Khô
-                                                        Nhanh Ngòi 0.5mm, Mực
-                                                        Đều, Nét Chữ Đẹp Đủ Màu
-                                                        MiGA
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 max-w-[60%] flex-shrink-0"
-                                                            style={{
-                                                                color: "rgb(238, 77, 45)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                Rẻ Vô Địch
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                        <div className="pointer-events-none text-ellipsis overflow-hidden h-4 flex-grow-0 flex-shrink-1 flex flex-row justify-start items-stretch">
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="flex-none h-full"
-                                                            />
-                                                            <div className="truncate bg-shopee-voucher-yellow text-white leading-4 text-sp10">
-                                                                Giảm ₫1k
-                                                            </div>
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="rotate-180 flex-none h-full"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    1.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 201,1k
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Loa-bluetooth-mini-nghe-nhạc-không-dây-M3-cầm-tay-nhỏ-gọn-âm-thanh-lớn-có-dây-đeo-i.452249817.16196297511?sp_atk=c14eb6f9-e548-4516-baca-528ca628b587&xptdk=c14eb6f9-e548-4516-baca-528ca628b587"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/vn-11134207-7r98o-lmkf8ti478inc1_tn.webp"
-                                                        alt="Loa bluetooth mini nghe nhạc không dây M3 cầm tay nhỏ gọn âm thanh lớn có dây đeo"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 right-0 z-30 flex pr-1 pb-1"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="w-5 h-5 stroke-none"
-                                                            style={{
-                                                                backgroundImage:
-                                                                    'url("https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/43bd6a890841685e2fea.svg")',
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        <img
-                                                            src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/f7b342784ff25c9e4403.png"
-                                                            alt="flag-label"
-                                                            className="mr-0.5 mb-0.5 inline-block h-[14px]"
-                                                        />
-                                                        Loa bluetooth mini nghe
-                                                        nhạc không dây M3 cầm
-                                                        tay nhỏ gọn âm thanh lớn
-                                                        có dây đeo
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div className="pointer-events-none text-ellipsis overflow-hidden h-4 max-w-[60%] flex-shrink-0 flex flex-row justify-start items-stretch">
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="flex-none h-full"
-                                                            />
-                                                            <div className="truncate bg-shopee-voucher-yellow text-white leading-4 text-sp10">
-                                                                Giảm ₫500k
-                                                            </div>
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="rotate-180 flex-none h-full"
-                                                            />
-                                                        </div>
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 flex-grow-0 flex-shrink-1"
-                                                            style={{
-                                                                color: "rgb(246, 145, 19)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                #ShopXuHuong
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    20.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Tai-nghe-không-dây-Bluetooth-game-thể-thao-giảm-tiếng-ồn-phù-hợp-với-mọi-dòng-điện-thoại-di-động-i.196261835.25518672099?sp_atk=426689f1-c047-4b55-9068-ff3734e28dad&xptdk=426689f1-c047-4b55-9068-ff3734e28dad"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/sg-11134301-7rcc5-lsgo4bksw5uo49_tn.webp"
-                                                        alt="Tai nghe không dây Bluetooth game thể thao giảm tiếng ồn phù hợp với mọi dòng điện thoại di động"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div className="text-shopee-primary font-medium bg-shopee-pink py-0.5 px-1 text-xs/sp14 absolute top-0 right-0 z-30">
-                                                        <span aria-label="-8%" />
-                                                        -8%
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        <img
-                                                            src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/ef5ae19bc5ed8a733a70.png"
-                                                            alt="flag-label"
-                                                            className="mr-0.5 mb-0.5 inline-block h-[14px]"
-                                                        />
-                                                        Tai nghe không dây
-                                                        Bluetooth game thể thao
-                                                        giảm tiếng ồn phù hợp
-                                                        với mọi dòng điện thoại
-                                                        di động
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 max-w-full"
-                                                            style={{
-                                                                color: "rgb(238, 77, 45)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                Rẻ Vô Địch
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    60.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 13,6k
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Bút-Gel-Bút-Bi-Nước-Mực-Gel-Đen-Xanh-Đỏ-Khô-Nhanh-Ngòi-0.5mm-Mực-Đều-Nét-Chữ-Đẹp-Đủ-3-Màu-MiGA-i.98739931.24577553405?sp_atk=1396071a-fae8-422f-ad6f-15dfa071c1ac&xptdk=1396071a-fae8-422f-ad6f-15dfa071c1ac"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/vn-11134211-7r98o-ly2r15aiggrd32_tn.webp"
-                                                        alt="Bút Gel Bút Bi Nước Mực Gel Đen Xanh Đỏ Khô Nhanh Ngòi 0.5mm, Mực Đều, Nét Chữ Đẹp Đủ 3 Màu MiGA"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div className="text-shopee-primary font-medium bg-shopee-pink py-0.5 px-1 text-xs/sp14 absolute top-0 right-0 z-30">
-                                                        <span aria-label="-40%" />
-                                                        -40%
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        Bút Gel Bút Bi Nước Mực
-                                                        Gel Đen Xanh Đỏ Khô
-                                                        Nhanh Ngòi 0.5mm, Mực
-                                                        Đều, Nét Chữ Đẹp Đủ 3
-                                                        Màu MiGA
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 max-w-[60%] flex-shrink-0"
-                                                            style={{
-                                                                color: "rgb(238, 77, 45)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                Rẻ Vô Địch
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                        <div className="pointer-events-none text-ellipsis overflow-hidden h-4 flex-grow-0 flex-shrink-1 flex flex-row justify-start items-stretch">
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="flex-none h-full"
-                                                            />
-                                                            <div className="truncate bg-shopee-voucher-yellow text-white leading-4 text-sp10">
-                                                                Giảm ₫1k
-                                                            </div>
-                                                            <img
-                                                                src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/6860407a9f0e07000b6f.svg"
-                                                                alt="voucher-label-border"
-                                                                className="rotate-180 flex-none h-full"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    1.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 5,4k
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Bút-Gel-MIGA-Bút-Bi-Nước-Mực-Gel-Đen-Xanh-Đỏ-Khô-Nhanh-Ngòi-0.5mm-Mực-Đều-Nét-Chữ-Đẹp-Đủ-3-Màu-i.1143206766.23963070509?sp_atk=3852e5d3-3575-497e-b0e8-8bdc5ada3264&xptdk=3852e5d3-3575-497e-b0e8-8bdc5ada3264"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/vn-11134211-7r98o-ls6v9q46m6jd2e_tn.webp"
-                                                        alt="Bút Gel MIGA Bút Bi Nước Mực Gel Đen Xanh Đỏ Khô Nhanh Ngòi 0.5mm, Mực Đều, Nét Chữ Đẹp Đủ 3 Màu"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div className="text-shopee-primary font-medium bg-shopee-pink py-0.5 px-1 text-xs/sp14 absolute top-0 right-0 z-30">
-                                                        <span aria-label="-40%" />
-                                                        -40%
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        Bút Gel MIGA Bút Bi Nước
-                                                        Mực Gel Đen Xanh Đỏ Khô
-                                                        Nhanh Ngòi 0.5mm, Mực
-                                                        Đều, Nét Chữ Đẹp Đủ 3
-                                                        Màu
-                                                    </div>
-                                                    <div
-                                                        className="box-border flex space-x-1 h-5 text-sp10 items-center overflow-hidden mb-2"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="relative flex items-center before:content-[''] before:origin-top-left before:top-0 before:absolute before:left-1 before:right-1 before:scale-y-50 before:bg-current before:h-px after:content-[''] after:origin-bottom-right after:bottom-0 after:absolute after:left-1 after:right-1 after:scale-y-50 after:bg-current after:h-px pointer-events-none text-ellipsis overflow-hidden h-4 max-w-full"
-                                                            style={{
-                                                                color: "rgb(238, 77, 45)",
-                                                            }}
-                                                        >
-                                                            <svg
-                                                                className="w-1 h-4 absolute left-0 top-0"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                            <div className="text-sp10 leading-4 h-4 mx-1 truncate">
-                                                                Rẻ Vô Địch
-                                                            </div>
-                                                            <svg
-                                                                className="w-1 h-4 absolute right-0 top-0 transform rotate-180"
-                                                                viewBox="-0.25 -0.25 4 16"
-                                                                fill="none"
-                                                            >
-                                                                <path
-                                                                    d="M4 0h-3q-1 0 -1 1v13.5q0 1 1 1h3"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="0.5"
-                                                                    fill="transparent"
-                                                                />
-                                                            </svg>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    1.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 34,6k
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Senbenbao-Tai-nghe-không-dây-nhẹ-đầy-màu-sắc-được-nâng-cấp-mới-với-màn-hình-hiển-thị-nguồn-kỹ-thuật-số-LED-ngăn-sạc-trong-suốt-Tai-nghe-thể-thao-trò-chơi-âm-nhạc-có-độ-trung-thực-cao-i.888370483.25172999956?sp_atk=8f6697ff-c7ef-47f2-a4c6-e4a3f41232c9&xptdk=8f6697ff-c7ef-47f2-a4c6-e4a3f41232c9"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/sg-11134201-7rcer-ltvucif0h8up36_tn.webp"
-                                                        alt="Senbenbao Tai nghe không dây nhẹ đầy màu sắc được nâng cấp mới với màn hình hiển thị nguồn kỹ thuật số LED, ngăn sạc trong suốt, Tai nghe thể thao trò chơi âm nhạc có độ trung thực cao"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div className="text-shopee-primary font-medium bg-shopee-pink py-0.5 px-1 text-xs/sp14 absolute top-0 right-0 z-30">
-                                                        <span aria-label="-32%" />
-                                                        -32%
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 right-0 z-30 flex pr-1 pb-1"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div className="inline-block px-1 py-0.5 rounded-sm bg-shopee-black26 text-xs/3 capitalize text-white whitespace-nowrap">
-                                                            Ad
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        <img
-                                                            src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/a0842aa9294375794fd2.png"
-                                                            alt="flag-label"
-                                                            className="mr-0.5 mb-0.5 inline-block h-[14px]"
-                                                        />
-                                                        Senbenbao Tai nghe không
-                                                        dây nhẹ đầy màu sắc được
-                                                        nâng cấp mới với màn
-                                                        hình hiển thị nguồn kỹ
-                                                        thuật số LED, ngăn sạc
-                                                        trong suốt, Tai nghe thể
-                                                        thao trò chơi âm nhạc có
-                                                        độ trung thực cao
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    65.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 10
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div className="N_YeYe">
-                                    <div
-                                        className="shopee_ic"
-                                        style={{ display: "contents" }}
-                                    >
-                                        <a
-                                            className="contents"
-                                            href="/Tai-nghe-không-dây-HQAi-H4-Tai-nghe-Bluetooth-Mic-tích-hợp-Tai-nghe-Tai-nghe-Hi-fi-thể-thao-chống-i.1255980089.24880310689?sp_atk=5e8101ee-002d-4fe2-9d14-e070ac808236&xptdk=5e8101ee-002d-4fe2-9d14-e070ac808236"
-                                        >
-                                            <div className="flex flex-col bg-white cursor-pointer h-full h-full duration-100 ease-sharp-motion-curve hover:shadow-hover active:shadow-active hover:-translate-y-[1px] active:translate-y-0 relative hover:z-[1] border border-shopee-black9">
-                                                <div className="relative z-0 w-full pt-full">
-                                                    <img
-                                                        src="https://down-vn.img.susercontent.com/file/cn-11134207-7r98o-lvbq3iba5bqp60_tn.webp"
-                                                        alt="Tai nghe không dây HQAi H4 Tai nghe Bluetooth Mic tích hợp Tai nghe Tai nghe Hi-fi thể thao chống"
-                                                        className="inset-y-0 w-full h-full pointer-events-none object-contain absolute"
-                                                        loading="lazy"
-                                                        aria-hidden="true"
-                                                    />
-                                                    <div className="text-shopee-primary font-medium bg-shopee-pink py-0.5 px-1 text-xs/sp14 absolute top-0 right-0 z-30">
-                                                        <span aria-label="-44%" />
-                                                        -44%
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 left-0 z-10 w-full w-full h-hull"
-                                                        aria-label="image overlay,src:https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                    >
-                                                        <img
-                                                            src="https://down-vn.img.susercontent.com/file/vn-11134258-7r98o-lxh4aalygxcpc2"
-                                                            className="w-full"
-                                                            alt="custom-overlay"
-                                                        />
-                                                    </div>
-                                                    <div
-                                                        className="absolute bottom-0 right-0 z-30 flex pr-1 pb-1"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <div
-                                                            className="w-5 h-5 stroke-none"
-                                                            style={{
-                                                                backgroundImage:
-                                                                    'url("https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/43bd6a890841685e2fea.svg")',
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="p-2 flex-1 flex flex-col justify-between">
-                                                    <div className="mb-1 whitespace-normal line-clamp-2 break-words min-h-[2.5rem] text-sm">
-                                                        <img
-                                                            src="https://deo.shopeemobile.com/shopee/modules-federation/live/0/shopee__item-card-recommendation-v2/0.0.0-mr-20240805121008/pc/ef5ae19bc5ed8a733a70.png"
-                                                            alt="flag-label"
-                                                            className="mr-0.5 mb-0.5 inline-block h-[14px]"
-                                                        />
-                                                        Tai nghe không dây HQAi
-                                                        H4 Tai nghe Bluetooth
-                                                        Mic tích hợp Tai nghe
-                                                        Tai nghe Hi-fi thể thao
-                                                        chống
-                                                    </div>
-                                                    <div className="flex justify-between items-center space-x-1">
-                                                        <div className="max-w-full flex-grow-1 flex-shrink-0 truncate text-shopee-primary flex items-center font-medium">
-                                                            <span aria-label="promotion price" />
-                                                            <div className="truncate flex items-baseline">
-                                                                <span className="text-xs/sp14 font-medium mr-px">
-                                                                    ₫
-                                                                </span>
-                                                                <span className="font-medium text-base/5 truncate">
-                                                                    49.000
-                                                                </span>
-                                                                <span className="text-xs/sp14 font-medium mr-px" />
-                                                            </div>
-                                                        </div>
-                                                        <div className="truncate text-shopee-black87 text-xs min-h-4 flex-shrink-1 ml-auto">
-                                                            Đã bán 1,9k
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            Xem thêm
                                         </a>
                                     </div>
                                 </div>

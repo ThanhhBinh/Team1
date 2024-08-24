@@ -43,6 +43,7 @@ import VnOnboardingForm4 from "./sell/VnOnboardingForm4";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import NewProduct from "./sell/Product/NewProduct";
 import Searchproduct from "./scenes/SearchProduct";
+import Search from "./scenes/global/Search";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 const router = createBrowserRouter([
@@ -145,6 +146,10 @@ const router = createBrowserRouter([
             {
                 path: "flashsale",
                 element: <Flashsale />,
+            },
+            {
+                path: "search",
+                element: <Search />,
             },
             {
                 path: "top-product",
